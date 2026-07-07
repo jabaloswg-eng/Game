@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { buildWorld, terrainHeight, findSpawn, WATER_LEVEL } from './world.js';
 import { createHero } from './character.js';
 import { createControls } from './controls.js';
+import { createEnemies } from './enemies.js';
+import { createFX } from './fx.js';
 
 // --- renderer -------------------------------------------------------------
 
@@ -35,6 +37,88 @@ scene.add(hero.group);
 hero.group.position.copy(findSpawn());
 
 const controls = createControls(renderer.domElement);
+const enemies = createEnemies(scene);
+const fx = createFX(scene);
+
+// --- player health and combat ------------------------------------------------
+
+const MAX_HP = 100;
+const SWORD_DAMAGE = 25;
+const SHEATHE_AFTER = 6; // seconds without fighting before the sword goes away
+
+let hp = MAX_HP;
+let lastHurt = -100;
+let sheatheTimer = 0;
+let dead = false;
+let elapsed = 0;
+
+const hpFill = document.getElementById('hpfill');
+const damageFlash = document.getElementById('damage-flash');
+const deathOverlay = document.getElementById('death');
+
+function refreshHpBar() {
+  hpFill.style.width = `${Math.max(0, (hp / MAX_HP) * 100)}%`;
+  hpFill.classList.toggle('low', hp < MAX_HP * 0.35);
+}
+
+function hurtPlayer(amount, fromPos) {
+  if (dead) return;
+  hp -= amount;
+  lastHurt = elapsed;
+  refreshHpBar();
+  fx.spawnNumber(
+    hero.group.position.clone().setY(hero.group.position.y + 2.1),
+    String(amount), '#ff6a5a'
+  );
+  // brief red vignette + knockback away from the attacker
+  damageFlash.style.opacity = 1;
+  setTimeout(() => (damageFlash.style.opacity = 0), 180);
+  const away = hero.group.position.clone().sub(fromPos).setY(0).normalize();
+  velocity.x += away.x * 6;
+  velocity.z += away.z * 6;
+
+  if (hp <= 0) {
+    dead = true;
+    deathOverlay.style.opacity = 1;
+    setTimeout(() => {
+      hero.group.position.copy(findSpawn());
+      velocity.set(0, 0, 0);
+      hp = MAX_HP;
+      refreshHpBar();
+      dead = false;
+      deathOverlay.style.opacity = 0;
+    }, 1800);
+  }
+}
+
+function updateCombat(dt) {
+  if (controls.consumeAttack() && !dead) {
+    hero.setArmed(true);
+    sheatheTimer = SHEATHE_AFTER;
+    if (hero.startAttack()) {
+      // if standing still, square up to where the camera looks
+      if (Math.hypot(velocity.x, velocity.z) < 1) {
+        hero.group.rotation.y = controls.state.yaw + Math.PI;
+      }
+    }
+  }
+
+  if (hero.consumeStrike()) {
+    const hits = enemies.damageCone(hero.group.position, hero.group.rotation.y, SWORD_DAMAGE, fx);
+    if (hits > 0) sheatheTimer = SHEATHE_AFTER;
+  }
+
+  if (sheatheTimer > 0) {
+    sheatheTimer -= dt;
+    if (sheatheTimer <= 0) hero.setArmed(false);
+  }
+
+  // slow regeneration once out of combat for a while
+  if (!dead && hp < MAX_HP && elapsed - lastHurt > 6) {
+    hp = Math.min(MAX_HP, hp + 2.5 * dt);
+    refreshHpBar();
+  }
+}
 
 // --- player physics ---------------------------------------------------------
 
@@ -54,7 +138,7 @@ function canStandAt(x, z) {
 
 function updatePlayer(dt) {
   const pos = hero.group.position;
-  const move = controls.moveVector();
+  const move = dead ? new THREE.Vector3() : controls.moveVector();
   const targetSpeed = controls.wantsSprint() ? SPRINT_SPEED : WALK_SPEED;
 
   // ease horizontal velocity toward the input direction
@@ -136,8 +220,12 @@ let firstFrame = true;
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
 
   updatePlayer(dt);
+  updateCombat(dt);
+  enemies.update(dt, hero.group.position, hurtPlayer);
+  fx.update(dt);
   updateCamera();
   updateSun();
   world.update(dt);
@@ -151,3 +239,12 @@ function loop() {
 }
 
 loop();
+
+// small handle for automated testing — not used by the game itself
+window.__game = {
+  get hp() { return hp; },
+  enemyCount: enemies.count,
+  enemies: () => enemies.snapshot(),
+  setPos(x, z) { hero.group.position.set(x, terrainHeight(x, z), z); },
+  setYaw(y) { hero.group.rotation.y = y; },
+};

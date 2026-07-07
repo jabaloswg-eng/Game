@@ -1,19 +1,26 @@
 # The Valley 🗡️
 
-A small open-world 3D adventure that runs in your web browser — the first
-step toward a bigger action RPG. You play a sword-carrying adventurer
-exploring a green valley surrounded by mountains, with a lake, forests,
-rocks and flowers.
+A small open-world 3D action RPG that runs in your web browser. You play
+a sword-carrying adventurer exploring a green valley surrounded by
+mountains — and defending yourself against the goblins, wolves and boars
+that live there.
 
 ## How to play
 
 | Input | Action |
 |---|---|
 | **W A S D** (or arrow keys) | Move |
+| **Click** (or **J**) | Attack with your sword |
 | **Shift** | Sprint |
 | **Space** | Jump |
 | **Drag the mouse** | Look around |
 | **Scroll wheel** | Zoom in / out |
+
+Monsters wander near their dens. Get too close and they'll chase you —
+goblins swing clubs, wolves are fast, boars hit hard. Your health bar is
+in the top-left corner; it slowly recovers once you're out of combat, and
+if you fall you respawn at the valley's center. Defeated monsters return
+to their dens after about half a minute.
 
 ## Running the game
 
@@ -38,8 +45,11 @@ then open <http://localhost:8000> in your browser.
 | `index.html` | The web page: loading screen, controls hint, and it starts the game |
 | `src/main.js` | The heart of the game: sets everything up and runs the game loop |
 | `src/world.js` | Builds the valley — terrain, lake, trees, rocks, flowers, sky, sunlight |
-| `src/character.js` | The hero's 3D model and its animations |
+| `src/character.js` | The hero's 3D model, animations and sword attack |
+| `src/enemies.js` | The monsters: models, behavior (wander/chase/attack), health |
 | `src/controls.js` | Reads your keyboard/mouse and controls the camera |
+| `src/fx.js` | Floating damage numbers |
+| `src/textures.js` | Procedural textures (grass, bark, water ripples) painted in code |
 | `vendor/three.module.js` | [Three.js](https://threejs.org), the 3D graphics library the game is built on |
 | `.github/workflows/pages.yml` | Automatically publishes the game to GitHub Pages on every update |
 
@@ -47,8 +57,8 @@ then open <http://localhost:8000> in your browser.
 
 Ideas for future versions, roughly in order:
 
-1. Combat — draw the sword, attack, hit effects
-2. Enemies that roam the valley
+1. ~~Combat — draw the sword, attack, hit effects~~ ✅
+2. ~~Enemies that roam the valley~~ ✅
 3. NPCs and dialogue
 4. Quests
 5. Inventory and loot

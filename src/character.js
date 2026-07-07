@@ -119,11 +119,21 @@ export function createHero() {
     body.add(leg);
   }
 
-  // sword slung across the back
+  // the sword lives on the back mount when sheathed, and moves to the
+  // hand mount (attached to the right arm, so it swings with it) in combat
   const sword = buildSword();
-  sword.position.set(0.05, 1.1, -0.24);
-  sword.rotation.z = 2.55;
-  body.add(sword);
+
+  const backMount = new THREE.Group();
+  backMount.position.set(0.05, 1.1, -0.24);
+  backMount.rotation.z = 2.55;
+  body.add(backMount);
+
+  const handMount = new THREE.Group();
+  handMount.position.set(0.02, -0.58, 0.1);
+  handMount.rotation.x = 1.25; // blade forward-up while the arm hangs
+  armR.add(handMount);
+
+  backMount.add(sword);
 
   // ------------------------------------------------------------------
   // Procedural animation: pose targets are computed from the movement
@@ -131,6 +141,33 @@ export function createHero() {
   // ------------------------------------------------------------------
   let phase = 0;
   let idleT = 0;
+
+  // combat state
+  let armed = false;
+  let attackT = -1;        // -1 = not attacking, otherwise seconds into the swing
+  let strikeReady = false; // true for one frame at the moment the blade lands
+  const ATTACK_LENGTH = 0.5;
+  const STRIKE_AT = 0.22;
+
+  function setArmed(v) {
+    if (v === armed) return;
+    armed = v;
+    sword.removeFromParent();
+    (armed ? handMount : backMount).add(sword);
+  }
+
+  function startAttack() {
+    if (attackT >= 0 && attackT < ATTACK_LENGTH * 0.7) return false;
+    attackT = 0;
+    return true;
+  }
+
+  // main.js polls this once per frame; true exactly when damage should land
+  function consumeStrike() {
+    const s = strikeReady;
+    strikeReady = false;
+    return s;
+  }
 
   function update(dt, { speed, grounded }) {
     const run = Math.min(speed / 7, 1.4); // 0 = standing, 1 = full run
@@ -161,14 +198,40 @@ export function createHero() {
       lean = 0;
     }
 
+    // the attack swing overrides the right arm: raise overhead, slash
+    // down through the front, then recover
+    let twist = 0;
+    if (attackT >= 0) {
+      const prev = attackT;
+      attackT += dt;
+      if (prev < STRIKE_AT && attackT >= STRIKE_AT) strikeReady = true;
+      if (attackT >= ATTACK_LENGTH) {
+        attackT = -1;
+      } else {
+        const t = attackT / ATTACK_LENGTH;
+        if (t < 0.35) {
+          armRx = 2.7 * (t / 0.35);           // wind up overhead
+          twist = -0.35 * (t / 0.35);
+        } else if (t < 0.6) {
+          armRx = 2.7 - 2.3 * ((t - 0.35) / 0.25); // slash down
+          twist = -0.35 + 0.75 * ((t - 0.35) / 0.25);
+        } else {
+          armRx = 0.4 - 0.4 * ((t - 0.6) / 0.4);   // recover
+          twist = 0.4 * (1 - (t - 0.6) / 0.4);
+        }
+      }
+    }
+
     const ease = 1 - Math.exp(-14 * dt);
+    const attackEase = attackT >= 0 ? 1 - Math.exp(-30 * dt) : ease;
     armL.rotation.x += (armLx - armL.rotation.x) * ease;
-    armR.rotation.x += (armRx - armR.rotation.x) * ease;
+    armR.rotation.x += (armRx - armR.rotation.x) * attackEase;
     legL.rotation.x += (legLx - legL.rotation.x) * ease;
     legR.rotation.x += (legRx - legR.rotation.x) * ease;
     body.position.y += (bob - body.position.y) * ease;
     body.rotation.x += (lean - body.rotation.x) * ease;
+    body.rotation.y += (twist - body.rotation.y) * attackEase;
   }
 
-  return { group, update };
+  return { group, update, setArmed, startAttack, consumeStrike };
 }

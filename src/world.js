@@ -1,6 +1,7 @@
 // world.js — builds the valley: terrain, lake, trees, rocks, flowers, sky and light.
 
 import * as THREE from 'three';
+import { groundTexture, barkTexture, waterNormalTexture } from './textures.js';
 
 export const WATER_LEVEL = -1.4;
 export const WORLD_SIZE = 440;
@@ -108,7 +109,12 @@ function buildTerrain() {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
 
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    map: groundTexture(),
+    roughness: 0.95,
+    metalness: 0,
+  });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   return mesh;
@@ -138,15 +144,22 @@ function grassSpots(count, seed, minH = WATER_LEVEL + 1.2, maxH = 18, maxR = 160
 
 function buildTrees(scene) {
   const spots = grassSpots(190, 1000);
-  const trunkGeo = new THREE.CylinderGeometry(0.22, 0.34, 2.2, 6);
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 0.9 });
-  const leafGeo = new THREE.ConeGeometry(1.7, 3.6, 7);
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  const trunkGeo = new THREE.CylinderGeometry(0.22, 0.34, 2.2, 7);
+  const trunkMat = new THREE.MeshStandardMaterial({
+    color: 0x8a6240,
+    map: barkTexture(),
+    roughness: 0.9,
+  });
+  // two stacked leaf cones give the canopy a fuller, layered silhouette
+  const leafGeo1 = new THREE.ConeGeometry(1.85, 2.7, 7);
+  const leafGeo2 = new THREE.ConeGeometry(1.25, 2.1, 7);
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, flatShading: true });
 
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, spots.length);
-  const leaves = new THREE.InstancedMesh(leafGeo, leafMat, spots.length);
-  trunks.castShadow = leaves.castShadow = true;
-  leaves.receiveShadow = true;
+  const leaves1 = new THREE.InstancedMesh(leafGeo1, leafMat, spots.length);
+  const leaves2 = new THREE.InstancedMesh(leafGeo2, leafMat, spots.length);
+  trunks.castShadow = leaves1.castShadow = leaves2.castShadow = true;
+  leaves1.receiveShadow = leaves2.receiveShadow = true;
 
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -155,22 +168,49 @@ function buildTrees(scene) {
 
   spots.forEach((s, i) => {
     const scale = 0.75 + s.r * 0.9;
+    const sv = new THREE.Vector3(scale, scale, scale);
     q.setFromAxisAngle(up, s.r * Math.PI * 2);
-    m.compose(new THREE.Vector3(s.x, s.h + 1.0 * scale, s.z), q, new THREE.Vector3(scale, scale, scale));
+    m.compose(new THREE.Vector3(s.x, s.h + 1.0 * scale, s.z), q, sv);
     trunks.setMatrixAt(i, m);
-    m.compose(new THREE.Vector3(s.x, s.h + (2.2 + 1.5) * scale, s.z), q, new THREE.Vector3(scale, scale, scale));
-    leaves.setMatrixAt(i, m);
+    m.compose(new THREE.Vector3(s.x, s.h + 3.1 * scale, s.z), q, sv);
+    leaves1.setMatrixAt(i, m);
+    m.compose(new THREE.Vector3(s.x, s.h + 4.6 * scale, s.z), q, sv);
+    leaves2.setMatrixAt(i, m);
     leafColor.setHSL(0.31 + s.r * 0.06, 0.55, 0.3 + s.r * 0.12);
-    leaves.setColorAt(i, leafColor);
+    leaves1.setColorAt(i, leafColor);
+    leaves2.setColorAt(i, leafColor);
   });
 
-  scene.add(trunks, leaves);
+  scene.add(trunks, leaves1, leaves2);
+}
+
+// small grass blades scattered across the meadows for ground-level detail
+function buildGrassTufts(scene) {
+  const spots = grassSpots(750, 4000, WATER_LEVEL + 1.0, 15, 155, 4);
+  const geo = new THREE.ConeGeometry(0.07, 0.4, 4);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+  const tufts = new THREE.InstancedMesh(geo, mat, spots.length);
+
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const color = new THREE.Color();
+  spots.forEach((s, i) => {
+    const scale = 0.7 + s.r * 1.1;
+    e.set((s.r - 0.5) * 0.5, s.r * Math.PI * 2, (s.r - 0.5) * 0.5);
+    q.setFromEuler(e);
+    m.compose(new THREE.Vector3(s.x, s.h + 0.16 * scale, s.z), q, new THREE.Vector3(scale, scale, scale));
+    tufts.setMatrixAt(i, m);
+    color.setHSL(0.29 + s.r * 0.07, 0.5, 0.28 + s.r * 0.14);
+    tufts.setColorAt(i, color);
+  });
+  scene.add(tufts);
 }
 
 function buildRocks(scene) {
   const spots = grassSpots(90, 2000, WATER_LEVEL + 0.4, 30, 175);
   const geo = new THREE.DodecahedronGeometry(0.9, 0);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x9a9aa4, roughness: 0.95 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x9a9aa4, roughness: 0.95, flatShading: true });
   const rocks = new THREE.InstancedMesh(geo, mat, spots.length);
   rocks.castShadow = rocks.receiveShadow = true;
 
@@ -280,12 +320,15 @@ function buildClouds(scene) {
 function buildWater(scene) {
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE);
   geo.rotateX(-Math.PI / 2);
+  const normalMap = waterNormalTexture();
   const mat = new THREE.MeshStandardMaterial({
     color: 0x3f86c9,
     transparent: true,
     opacity: 0.78,
-    roughness: 0.25,
-    metalness: 0.1,
+    roughness: 0.18,
+    metalness: 0.15,
+    normalMap,
+    normalScale: new THREE.Vector2(0.45, 0.45),
   });
   const water = new THREE.Mesh(geo, mat);
   water.position.y = WATER_LEVEL;
@@ -295,6 +338,7 @@ function buildWater(scene) {
   return (dt) => {
     t += dt;
     water.position.y = WATER_LEVEL + Math.sin(t * 0.8) * 0.07;
+    normalMap.offset.set(t * 0.012, t * 0.009); // drifting ripples
   };
 }
 
@@ -331,6 +375,7 @@ export function buildWorld(scene) {
 
   scene.add(buildTerrain());
   buildTrees(scene);
+  buildGrassTufts(scene);
   buildRocks(scene);
   buildFlowers(scene);
   buildSky(scene);

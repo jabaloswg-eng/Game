@@ -17,12 +17,18 @@ export function createControls(domElement) {
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
 
+  // A quick click (no real mouse movement) is an attack; a drag with the
+  // button held moves the camera.
   let dragging = false;
   let lastX = 0, lastY = 0;
+  let downX = 0, downY = 0, downTime = 0;
+  let attackQueued = false;
+
   domElement.addEventListener('pointerdown', (e) => {
     dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
+    lastX = downX = e.clientX;
+    lastY = downY = e.clientY;
+    downTime = performance.now();
     domElement.setPointerCapture(e.pointerId);
   });
   domElement.addEventListener('pointermove', (e) => {
@@ -33,7 +39,11 @@ export function createControls(domElement) {
     lastX = e.clientX;
     lastY = e.clientY;
   });
-  domElement.addEventListener('pointerup', () => (dragging = false));
+  domElement.addEventListener('pointerup', (e) => {
+    dragging = false;
+    const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+    if (moved < 6 && performance.now() - downTime < 350) attackQueued = true;
+  });
   domElement.addEventListener('wheel', (e) => {
     state.distance = Math.min(16, Math.max(3.5, state.distance + e.deltaY * 0.005));
   }, { passive: true });
@@ -58,5 +68,13 @@ export function createControls(domElement) {
 
     wantsSprint: () => keys.has('ShiftLeft') || keys.has('ShiftRight'),
     wantsJump: () => keys.has('Space'),
+
+    // returns true once per queued click ("J" works as a keyboard fallback)
+    consumeAttack() {
+      const a = attackQueued || keys.has('KeyJ');
+      attackQueued = false;
+      if (keys.has('KeyJ')) keys.delete('KeyJ');
+      return a;
+    },
   };
 }

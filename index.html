@@ -64,6 +64,56 @@
       backdrop-filter: blur(4px);
     }
     #hint b { color: #ffd97a; font-weight: 600; }
+    #hud {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 5;
+      color: #e8f2fa;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+    #hpbar {
+      width: 220px;
+      height: 16px;
+      border-radius: 9px;
+      background: rgba(10, 25, 40, 0.6);
+      border: 1px solid rgba(232, 242, 250, 0.35);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    #hpfill {
+      height: 100%;
+      width: 100%;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #3fbf5a, #6ee06a);
+      transition: width 0.15s ease;
+    }
+    #hpfill.low { background: linear-gradient(90deg, #c2372b, #e05a3f); }
+    #damage-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 8;
+      box-shadow: inset 0 0 120px 40px rgba(200, 30, 20, 0.55);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #death {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 5, 8, 0.75);
+      color: #f2d9d0;
+      font-size: 38px;
+      letter-spacing: 4px;
+      z-index: 9;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
   </style>
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js" } }
@@ -76,9 +126,15 @@
     <div class="spinner"></div>
     <div>Preparing your adventure…</div>
   </div>
+  <div id="hud">
+    HP
+    <div id="hpbar"><div id="hpfill"></div></div>
+  </div>
+  <div id="damage-flash"></div>
+  <div id="death">YOU WERE DEFEATED</div>
   <div id="hint">
-    <b>WASD</b> move &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>Space</b> jump
-    &nbsp;·&nbsp; <b>Drag mouse</b> look around &nbsp;·&nbsp; <b>Scroll</b> zoom
+    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>Shift</b> sprint
+    &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag mouse</b> look &nbsp;·&nbsp; <b>Scroll</b> zoom
   </div>
   <script type="module" src="./src/main.js"></script>
 </body>

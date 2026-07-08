@@ -233,5 +233,8 @@ export function createHero() {
     body.rotation.y += (twist - body.rotation.y) * attackEase;
   }
 
-  return { group, update, setArmed, startAttack, consumeStrike };
+  return {
+    group, update, setArmed, startAttack, consumeStrike,
+    isAttacking: () => attackT >= 0,
+  };
 }

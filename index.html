@@ -90,6 +90,116 @@
       transition: width 0.15s ease;
     }
     #hpfill.low { background: linear-gradient(90deg, #c2372b, #e05a3f); }
+    #toprow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #levelbadge {
+      background: linear-gradient(180deg, #f2c94c, #c9992e);
+      color: #2c2008;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 2px 9px;
+      border-radius: 10px;
+    }
+    #xpbar {
+      width: 220px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(10, 25, 40, 0.6);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    #xpfill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #b98ef2, #7c5bd6);
+      transition: width 0.2s ease;
+    }
+    #levelup {
+      position: fixed;
+      top: 22%;
+      left: 50%;
+      transform: translateX(-50%) scale(0.8);
+      color: #ffe27a;
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      text-shadow: 0 0 24px rgba(255, 190, 60, 0.9), 0 2px 6px rgba(0,0,0,0.6);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 7;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #levelup.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+    #skillbar {
+      position: fixed;
+      left: 50%;
+      bottom: 56px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 5;
+    }
+    .skill {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 10px;
+      background: rgba(10, 25, 40, 0.65);
+      border: 1px solid rgba(232, 242, 250, 0.4);
+      cursor: pointer;
+      overflow: hidden;
+      user-select: none;
+    }
+    .skill-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+    }
+    .skill-key {
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      font-size: 11px;
+      color: #ffd97a;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .skill-name {
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #cfe3f2;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .skill-cd {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0%;
+      background: rgba(20, 40, 60, 0.8);
+      z-index: 1;
+    }
+    .skill.locked { filter: grayscale(1) brightness(0.5); cursor: default; }
+    .skill.shake { animation: shake 0.3s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
     #damage-flash {
       position: fixed;
       inset: 0;
@@ -127,13 +237,16 @@
     <div>Preparing your adventure…</div>
   </div>
   <div id="hud">
-    HP
+    <div id="toprow"><span id="levelbadge">Lv 1</span> HP</div>
     <div id="hpbar"><div id="hpfill"></div></div>
+    <div id="xpbar"><div id="xpfill"></div></div>
   </div>
+  <div id="levelup">LEVEL UP!</div>
+  <div id="skillbar"></div>
   <div id="damage-flash"></div>
   <div id="death">YOU WERE DEFEATED</div>
   <div id="hint">
-    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>Shift</b> sprint
+    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>Shift</b> sprint
     &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag mouse</b> look &nbsp;·&nbsp; <b>Scroll</b> zoom
   </div>
   <script type="module" src="./src/main.js"></script>

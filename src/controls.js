@@ -35,7 +35,7 @@ export function createControls(domElement) {
     if (!dragging) return;
     state.yaw -= (e.clientX - lastX) * 0.005;
     state.pitch += (e.clientY - lastY) * 0.004;
-    state.pitch = Math.min(1.25, Math.max(-0.05, state.pitch));
+    state.pitch = Math.min(1.25, Math.max(-0.45, state.pitch));
     lastX = e.clientX;
     lastY = e.clientY;
   });

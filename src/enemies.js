@@ -369,9 +369,24 @@ export function createEnemies(scene) {
     }
   }
 
+  // Nearest living enemy within maxDist of a point (for targeted skills).
+  function nearest(pos, maxDist) {
+    let best = null;
+    let bestD = maxDist;
+    for (const e of enemies) {
+      if (e.state === 'dead') continue;
+      const d = e.model.group.position.distanceTo(pos);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    return best && { position: best.model.group.position, distance: bestD, type: best.type };
+  }
+
   // Damage every living enemy inside a short cone in front of the player.
   const toEnemy = new THREE.Vector3();
-  function damageCone(origin, yaw, damage, fx) {
+  function damageCone(origin, yaw, damage, fx, onKill, range = 2.8) {
     const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
     let hits = 0;
     for (const e of enemies) {
@@ -380,7 +395,7 @@ export function createEnemies(scene) {
       toEnemy.subVectors(g.position, origin);
       toEnemy.y = 0;
       const d = toEnemy.length();
-      if (d > 2.8) continue;
+      if (d > range) continue;
       toEnemy.normalize();
       if (d > 0.6 && toEnemy.x * fwdX + toEnemy.z * fwdZ < 0.35) continue;
 
@@ -392,7 +407,10 @@ export function createEnemies(scene) {
       const kx = g.position.x + toEnemy.x * 0.9;
       const kz = g.position.z + toEnemy.z * 0.9;
       if (canStand(kx, kz)) g.position.set(kx, g.position.y, kz);
-      if (e.hp <= 0) die(e);
+      if (e.hp <= 0) {
+        die(e);
+        if (onKill) onKill(e.type, g.position);
+      }
       hits++;
     }
     return hits;
@@ -401,6 +419,7 @@ export function createEnemies(scene) {
   return {
     update,
     damageCone,
+    nearest,
     count: enemies.length,
     // read-only snapshot used by tests and (later) quest logic
     snapshot: () => enemies.map((e) => ({

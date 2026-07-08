@@ -11,6 +11,7 @@ that live there.
 |---|---|
 | **W A S D** (or arrow keys) | Move |
 | **Click** (or **J**) | Attack with your sword |
+| **1** | Charge — dash to a distant enemy and land an empowered slash |
 | **Shift** | Sprint |
 | **Space** | Jump |
 | **Drag the mouse** | Look around |
@@ -21,6 +22,20 @@ goblins swing clubs, wolves are fast, boars hit hard. Your health bar is
 in the top-left corner; it slowly recovers once you're out of combat, and
 if you fall you respawn at the valley's center. Defeated monsters return
 to their dens after about half a minute.
+
+## Leveling and skills
+
+Every kill grants experience (shown in the purple bar under your health).
+Levels go up to **50**, each level adds health and sword damage, and the
+XP curve is intentionally punishing — early levels come quick, the last
+ones are a badge of honor. Your level and XP are saved in the browser,
+so progress survives closing the page.
+
+Battle skills live on the bar at the bottom of the screen. The first
+skill is **Charge** (key 1): if an enemy is within ~25 meters, your hero
+rushes it at blinding speed and lands a slash that hits 60% harder.
+Eight-second cooldown. More skills will unlock at higher levels in
+future versions.
 
 ## Running the game
 
@@ -49,7 +64,11 @@ then open <http://localhost:8000> in your browser.
 | `src/enemies.js` | The monsters: models, behavior (wander/chase/attack), health |
 | `src/controls.js` | Reads your keyboard/mouse and controls the camera |
 | `src/fx.js` | Floating damage numbers |
+| `src/particles.js` | Glowing particle bursts — hit sparks, level-ups, charge streaks |
+| `src/progression.js` | XP, levels, and saving progress in the browser |
+| `src/skills.js` | The skill bar: triggers, cooldowns, level unlocks |
 | `src/textures.js` | Procedural textures (grass, bark, water ripples) painted in code |
+| `vendor/jsm/` | Three.js post-processing add-ons (the bloom/glow effect) |
 | `vendor/three.module.js` | [Three.js](https://threejs.org), the 3D graphics library the game is built on |
 | `.github/workflows/pages.yml` | Automatically publishes the game to GitHub Pages on every update |
 

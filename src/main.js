@@ -6,6 +6,13 @@ import { createHero } from './character.js';
 import { createControls } from './controls.js';
 import { createEnemies } from './enemies.js';
 import { createFX } from './fx.js';
+import { createParticles } from './particles.js';
+import { createProgression } from './progression.js';
+import { createSkills } from './skills.js';
+import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 
 // --- renderer -------------------------------------------------------------
 
@@ -23,30 +30,46 @@ const camera = new THREE.PerspectiveCamera(
   60, window.innerWidth / window.innerHeight, 0.1, 2000
 );
 
+// post-processing: render the scene, add a subtle glow to bright things
+// (sun, particles, water glints), then convert colors for the screen
+const composer = new EffectComposer(renderer);
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.38,  // strength — kept subtle so the scene doesn't turn into a dream sequence
+  0.6,   // radius
+  0.82   // threshold — only genuinely bright pixels bloom
+);
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // --- world and hero ---------------------------------------------------------
 
-const world = buildWorld(scene);
+const world = buildWorld(scene, renderer);
 const hero = createHero();
 scene.add(hero.group);
 hero.group.position.copy(findSpawn());
 
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
 const controls = createControls(renderer.domElement);
 const enemies = createEnemies(scene);
 const fx = createFX(scene);
+const particles = createParticles(scene);
+const progression = createProgression();
 
 // --- player health and combat ------------------------------------------------
 
-const MAX_HP = 100;
-const SWORD_DAMAGE = 25;
+const XP_REWARD = { goblin: 10, wolf: 12, boar: 16 };
 const SHEATHE_AFTER = 6; // seconds without fighting before the sword goes away
 
-let hp = MAX_HP;
+let hp = progression.maxHp();
 let lastHurt = -100;
 let sheatheTimer = 0;
 let dead = false;
@@ -57,8 +80,9 @@ const damageFlash = document.getElementById('damage-flash');
 const deathOverlay = document.getElementById('death');
 
 function refreshHpBar() {
-  hpFill.style.width = `${Math.max(0, (hp / MAX_HP) * 100)}%`;
-  hpFill.classList.toggle('low', hp < MAX_HP * 0.35);
+  const max = progression.maxHp();
+  hpFill.style.width = `${Math.max(0, (hp / max) * 100)}%`;
+  hpFill.classList.toggle('low', hp < max * 0.35);
 }
 
 function hurtPlayer(amount, fromPos) {
@@ -83,7 +107,7 @@ function hurtPlayer(amount, fromPos) {
     setTimeout(() => {
       hero.group.position.copy(findSpawn());
       velocity.set(0, 0, 0);
-      hp = MAX_HP;
+      hp = progression.maxHp();
       refreshHpBar();
       dead = false;
       deathOverlay.style.opacity = 0;
@@ -91,8 +115,76 @@ function hurtPlayer(amount, fromPos) {
   }
 }
 
+function onKill(type, atPos) {
+  particles.spawn(atPos.clone().setY(atPos.y + 0.8), {
+    count: 10, color: 0x9fe07a, speed: 3.5, life: 0.6, spread: 0,
+  });
+  if (progression.gainXP(XP_REWARD[type] ?? 10)) {
+    // level up: full heal + golden fountain
+    hp = progression.maxHp();
+    refreshHpBar();
+    particles.spawn(hero.group.position.clone().setY(hero.group.position.y + 1), {
+      count: 40, color: 0xffd75e, speed: 6, life: 1.1, spread: 0, gravity: -4, size: 0.22,
+    });
+  }
+}
+
+// --- Charge skill ------------------------------------------------------------
+
+const CHARGE_RANGE = 25;
+const CHARGE_SPEED = 35;
+const CHARGE_BONUS = 1.6;
+
+let charging = null;       // { target } while dashing
+let chargeStrike = false;  // the next sword strike is the empowered one
+
+function tryCharge() {
+  if (dead || charging) return false;
+  const target = enemies.nearest(hero.group.position, CHARGE_RANGE);
+  if (!target || target.distance < 3) return false; // too far or already in melee
+  charging = { target, timeLeft: 1.1 };
+  hero.setArmed(true);
+  sheatheTimer = SHEATHE_AFTER;
+  return true;
+}
+
+const skills = createSkills([
+  { id: 'charge', name: 'Charge', key: '1', icon: '⚡', cooldown: 8, unlockLevel: 1, use: tryCharge },
+]);
+
+function updateCharge(dt) {
+  if (!charging) return;
+  const pos = hero.group.position;
+  const t = charging.target.position;
+  const dx = t.x - pos.x, dz = t.z - pos.z;
+  const dist = Math.hypot(dx, dz);
+  charging.timeLeft -= dt;
+
+  if (dist < 1.7 || charging.timeLeft <= 0) {
+    // arrived: face the target and unleash the empowered slash
+    hero.group.rotation.y = Math.atan2(dx, dz);
+    hero.startAttack();
+    chargeStrike = true;
+    velocity.set(0, 0, 0);
+    charging = null;
+    return;
+  }
+
+  const step = Math.min(CHARGE_SPEED * dt, dist);
+  pos.x += (dx / dist) * step;
+  pos.z += (dz / dist) * step;
+  // the dash may cross water — the hero skims across the surface
+  pos.y = Math.max(terrainHeight(pos.x, pos.z), WATER_LEVEL - 0.35);
+  hero.group.rotation.y = Math.atan2(dx, dz);
+
+  // blue-white motion streaks trailing the dash
+  particles.spawn(pos.clone().setY(pos.y + 1), {
+    count: 4, color: 0x9fd4ff, speed: 1.2, life: 0.35, size: 0.2, gravity: 0,
+  });
+}
+
 function updateCombat(dt) {
-  if (controls.consumeAttack() && !dead) {
+  if (controls.consumeAttack() && !dead && !charging) {
     hero.setArmed(true);
     sheatheTimer = SHEATHE_AFTER;
     if (hero.startAttack()) {
@@ -104,8 +196,24 @@ function updateCombat(dt) {
   }
 
   if (hero.consumeStrike()) {
-    const hits = enemies.damageCone(hero.group.position, hero.group.rotation.y, SWORD_DAMAGE, fx);
-    if (hits > 0) sheatheTimer = SHEATHE_AFTER;
+    const wasCharge = chargeStrike;
+    chargeStrike = false;
+    const damage = Math.round(progression.swordDamage() * (wasCharge ? CHARGE_BONUS : 1));
+    // the charge slash reaches a bit farther, so a last-instant knockback
+    // can't push the target out of reach
+    const hits = enemies.damageCone(
+      hero.group.position, hero.group.rotation.y, damage, fx, onKill,
+      wasCharge ? 3.8 : 2.8
+    );
+    if (hits > 0) {
+      sheatheTimer = SHEATHE_AFTER;
+      // sparks fly where the blade lands
+      const impact = hero.group.position.clone();
+      impact.x += Math.sin(hero.group.rotation.y) * 1.4;
+      impact.z += Math.cos(hero.group.rotation.y) * 1.4;
+      impact.y += 1.1;
+      particles.spawn(impact, { count: 12, color: 0xffb347, speed: 6, life: 0.4 });
+    }
   }
 
   if (sheatheTimer > 0) {
@@ -114,10 +222,12 @@ function updateCombat(dt) {
   }
 
   // slow regeneration once out of combat for a while
-  if (!dead && hp < MAX_HP && elapsed - lastHurt > 6) {
-    hp = Math.min(MAX_HP, hp + 2.5 * dt);
+  if (!dead && hp < progression.maxHp() && elapsed - lastHurt > 6) {
+    hp = Math.min(progression.maxHp(), hp + 2.5 * dt);
     refreshHpBar();
   }
+
+  skills.update(dt, progression.level);
 }
 
 // --- player physics ---------------------------------------------------------
@@ -137,6 +247,13 @@ function canStandAt(x, z) {
 }
 
 function updatePlayer(dt) {
+  if (charging) {
+    // the dash owns all movement during Charge
+    updateCharge(dt);
+    hero.update(dt, { speed: CHARGE_SPEED, grounded: true });
+    return;
+  }
+
   const pos = hero.group.position;
   const move = dead ? new THREE.Vector3() : controls.moveVector();
   const targetSpeed = controls.wantsSprint() ? SPRINT_SPEED : WALK_SPEED;
@@ -147,11 +264,13 @@ function updatePlayer(dt) {
   velocity.x += (target.x - velocity.x) * ease;
   velocity.z += (target.z - velocity.z) * ease;
 
-  // try each axis separately so the hero slides along the lake shore
+  // try each axis separately so the hero slides along the lake shore;
+  // if already in deep water somehow, always allow moving (to escape)
+  const stuck = !canStandAt(pos.x, pos.z);
   const nx = pos.x + velocity.x * dt;
   const nz = pos.z + velocity.z * dt;
-  if (canStandAt(nx, pos.z)) pos.x = nx; else velocity.x = 0;
-  if (canStandAt(pos.x, nz)) pos.z = nz; else velocity.z = 0;
+  if (stuck || canStandAt(nx, pos.z)) pos.x = nx; else velocity.x = 0;
+  if (stuck || canStandAt(pos.x, nz)) pos.z = nz; else velocity.z = 0;
 
   // jumping and gravity
   if (grounded && controls.wantsJump()) {
@@ -168,9 +287,10 @@ function updatePlayer(dt) {
     grounded = true;
   }
 
-  // face the direction of movement
+  // face the direction of movement — but never mid-swing, so knockback
+  // can't spin the hero away from what he's attacking
   const horizSpeed = Math.hypot(velocity.x, velocity.z);
-  if (horizSpeed > 0.5) {
+  if (horizSpeed > 0.5 && !hero.isAttacking()) {
     const targetYaw = Math.atan2(velocity.x, velocity.z);
     let d = targetYaw - hero.group.rotation.y;
     while (d > Math.PI) d -= Math.PI * 2;
@@ -185,6 +305,13 @@ function updatePlayer(dt) {
 // --- camera -----------------------------------------------------------------
 
 const camTarget = new THREE.Vector3();
+
+// the camera's field of view widens during a Charge for a sense of speed
+function updateFov(dt) {
+  const targetFov = charging ? 72 : 60;
+  camera.fov += (targetFov - camera.fov) * Math.min(1, 8 * dt);
+  camera.updateProjectionMatrix();
+}
 
 function updateCamera() {
   const { yaw, pitch, distance } = controls.state;
@@ -226,11 +353,13 @@ function loop() {
   updateCombat(dt);
   enemies.update(dt, hero.group.position, hurtPlayer);
   fx.update(dt);
+  particles.update(dt);
+  updateFov(dt);
   updateCamera();
   updateSun();
   world.update(dt);
 
-  renderer.render(scene, camera);
+  composer.render();
 
   if (firstFrame) {
     firstFrame = false;
@@ -243,8 +372,14 @@ loop();
 // small handle for automated testing — not used by the game itself
 window.__game = {
   get hp() { return hp; },
+  get level() { return progression.level; },
+  get xp() { return progression.xp; },
+  get charging() { return !!charging; },
   enemyCount: enemies.count,
   enemies: () => enemies.snapshot(),
   setPos(x, z) { hero.group.position.set(x, terrainHeight(x, z), z); },
+  heroPos() { const p = hero.group.position; return { x: p.x, y: p.y, z: p.z }; },
+  groundAt(x, z) { return terrainHeight(x, z); },
   setYaw(y) { hero.group.rotation.y = y; },
+  useSkill(id) { skills.trigger(id); },
 };

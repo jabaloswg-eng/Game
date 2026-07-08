@@ -78,18 +78,26 @@ const ROCK = new THREE.Color(0xa3a3ae);
 const SNOW = new THREE.Color(0xf2f5f9);
 
 function buildTerrain() {
-  const segments = 220;
+  const segments = 300;
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segments, segments);
   geo.rotateX(-Math.PI / 2);
 
   const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, terrainHeight(pos.getX(i), pos.getZ(i)));
+  }
+  geo.computeVertexNormals();
+
+  // color AFTER normals exist, so steepness can pick the material:
+  // steep faces become bare rock no matter the altitude
+  const normal = geo.attributes.normal;
   const colors = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    const h = terrainHeight(x, z);
-    pos.setY(i, h);
+    const h = pos.getY(i);
+    const steep = 1 - normal.getY(i); // 0 = flat, →1 = cliff
 
     const jitter = (hash(Math.round(x * 3), Math.round(z * 3)) - 0.5) * 0.12;
     if (h < WATER_LEVEL + 0.7) {
@@ -101,13 +109,15 @@ function buildTerrain() {
     } else {
       c.lerpColors(ROCK, SNOW, smoothstep(38, 52, h));
     }
+    if (h > WATER_LEVEL + 0.7) {
+      c.lerp(ROCK, smoothstep(0.18, 0.4, steep));
+    }
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
   }
 
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
@@ -125,16 +135,17 @@ function buildTerrain() {
 // ---------------------------------------------------------------------------
 
 // Finds spots on open grassland (not underwater, not on the mountains,
-// and never right on top of the player's spawn point at the center).
+// and never right on top of the player's spawn point).
 function grassSpots(count, seed, minH = WATER_LEVEL + 1.2, maxH = 18, maxR = 160, minR = 12) {
+  const spawn = findSpawn();
   const spots = [];
   let i = 0;
   while (spots.length < count && i < count * 30) {
     i++;
     const x = (hash(seed + i, 17) - 0.5) * 2 * maxR;
     const z = (hash(seed + i, 91) - 0.5) * 2 * maxR;
-    const r = Math.hypot(x, z);
-    if (r > maxR || r < minR) continue;
+    if (Math.hypot(x, z) > maxR) continue;
+    if (Math.hypot(x - spawn.x, z - spawn.z) < minR) continue;
     const h = terrainHeight(x, z);
     if (h < minH || h > maxH) continue;
     spots.push({ x, z, h, r: hash(seed + i, 53) });
@@ -251,14 +262,20 @@ function buildFlowers(scene) {
 // Sky, clouds, water and lighting.
 // ---------------------------------------------------------------------------
 
-function buildSky(scene) {
-  const geo = new THREE.SphereGeometry(900, 24, 12);
+// direction the sunlight comes from — the sky shader and the shadow-casting
+// light both use this so the visible sun matches the shadows
+export const SUN_DIR = new THREE.Vector3(60, 95, 45).normalize();
+
+function buildSkyMesh() {
+  const geo = new THREE.SphereGeometry(900, 32, 16);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      top: { value: new THREE.Color(0x3f7fd6) },
+      top: { value: new THREE.Color(0x3573cc) },
       horizon: { value: new THREE.Color(0xcfe8f7) },
+      sunDir: { value: SUN_DIR.clone() },
+      sunColor: { value: new THREE.Color(0xfff3d0) },
     },
     vertexShader: `
       varying vec3 vPos;
@@ -270,14 +287,21 @@ function buildSky(scene) {
     fragmentShader: `
       uniform vec3 top;
       uniform vec3 horizon;
+      uniform vec3 sunDir;
+      uniform vec3 sunColor;
       varying vec3 vPos;
       void main() {
-        float t = clamp(normalize(vPos).y * 1.6 + 0.12, 0.0, 1.0);
-        gl_FragColor = vec4(mix(horizon, top, t), 1.0);
+        vec3 dir = normalize(vPos);
+        float t = clamp(dir.y * 1.6 + 0.12, 0.0, 1.0);
+        vec3 col = mix(horizon, top, t);
+        float d = max(dot(dir, sunDir), 0.0);
+        col += sunColor * pow(d, 900.0) * 8.0;  // the sun's disc (bloom makes it flare)
+        col += sunColor * pow(d, 20.0) * 0.22;  // wide warm halo around it
+        gl_FragColor = vec4(col, 1.0);
       }
     `,
   });
-  scene.add(new THREE.Mesh(geo, mat));
+  return new THREE.Mesh(geo, mat);
 }
 
 function buildClouds(scene) {
@@ -348,7 +372,7 @@ function buildLights(scene) {
 
   const sun = new THREE.DirectionalLight(0xfff1d6, 2.6);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(4096, 4096);
   sun.shadow.camera.left = -70;
   sun.shadow.camera.right = 70;
   sun.shadow.camera.top = 70;
@@ -370,15 +394,27 @@ function buildLights(scene) {
 // Public entry point: builds everything and returns what the game loop needs.
 // ---------------------------------------------------------------------------
 
-export function buildWorld(scene) {
+export function buildWorld(scene, renderer) {
   scene.fog = new THREE.Fog(0xcfe8f7, 110, 440);
+
+  const sky = buildSkyMesh();
+  scene.add(sky);
+
+  // bake the sky into an environment map: every material then receives
+  // soft blue light from above and warm light from the sun's direction,
+  // which makes surfaces look far richer than flat lights alone
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  envScene.add(buildSkyMesh());
+  scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+  scene.environmentIntensity = 0.55;
+  pmrem.dispose();
 
   scene.add(buildTerrain());
   buildTrees(scene);
   buildGrassTufts(scene);
   buildRocks(scene);
   buildFlowers(scene);
-  buildSky(scene);
   const updateClouds = buildClouds(scene);
   const updateWater = buildWater(scene);
   const sun = buildLights(scene);

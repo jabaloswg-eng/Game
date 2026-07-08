@@ -370,6 +370,7 @@ function loop() {
 loop();
 
 // small handle for automated testing — not used by the game itself
+window.__scene = scene;
 window.__game = {
   get hp() { return hp; },
   get level() { return progression.level; },
@@ -382,4 +383,26 @@ window.__game = {
   groundAt(x, z) { return terrainHeight(x, z); },
   setYaw(y) { hero.group.rotation.y = y; },
   useSkill(id) { skills.trigger(id); },
+  boxOf(i) { return enemies.boxOf(i); },
+  // debug: report all large meshes in the scene (test hook)
+  sceneReport() {
+    const out = [];
+    const box = new THREE.Box3();
+    const size = new THREE.Vector3();
+    scene.traverse((o) => {
+      if (!o.isMesh && !o.isPoints && !o.isSprite) return;
+      box.setFromObject(o);
+      box.getSize(size);
+      if (Math.max(size.x, size.y, size.z) > 50) {
+        out.push({
+          name: o.name || o.type,
+          geo: o.geometry?.type,
+          mat: Array.isArray(o.material) ? o.material.map(m => m.type).join() : o.material?.type,
+          size: [Math.round(size.x), Math.round(size.y), Math.round(size.z)],
+          pos: o.getWorldPosition(new THREE.Vector3()).toArray().map(v => Math.round(v)),
+        });
+      }
+    });
+    return out;
+  },
 };

@@ -175,7 +175,7 @@ const RESPAWN_SECONDS = 30;
 // names a GLB model variant from the assets/ folder (e.g. 'blender' loads
 // assets/goblin-blender.glb in place of the built-in primitive model).
 const DENS = [
-  ['goblin', 16, 8], ['goblin', 20, 12, 'blender'], ['goblin', -60, -40], ['goblin', -64, -34],
+  ['goblin', 16, 8, 'ai'], ['goblin', 20, 12, 'blender'], ['goblin', -60, -40], ['goblin', -64, -34],
   ['goblin', -55, -44], ['goblin', 85, 30], ['goblin', 90, 36], ['goblin', 82, 40],
   ['wolf', 40, -70], ['wolf', 45, -65], ['wolf', 36, -63], ['wolf', -90, 80], ['wolf', -85, 85],
   ['boar', -30, -15], ['boar', 60, 75], ['boar', -95, 10], ['boar', 25, 95], ['boar', 110, -30],
@@ -257,7 +257,11 @@ export function createEnemies(scene) {
     };
 
     if (variant) {
-      loadModel(`./assets/${type}-${variant}.glb`, { height: 1.45 })
+      // per-variant load tweaks (TripoSR models come out lying face-down)
+      const opts = variant === 'ai'
+        ? { height: 1.45, rotation: [-Math.PI / 2, 0, 0] }
+        : { height: 1.45 };
+      loadModel(`./assets/${type}-${variant}.glb`, opts)
         .then((loaded) => swapToGLB(e, bar, loaded))
         .catch((err) => console.warn(`Model ${type}-${variant} not loaded, keeping primitive:`, err));
     }
@@ -459,5 +463,10 @@ export function createEnemies(scene) {
       type: e.type, hp: e.hp, state: e.state,
       x: e.model.group.position.x, z: e.model.group.position.z,
     })),
+    // debug: world bounding box of an enemy's model (test hook)
+    boxOf: (i) => {
+      const box = new THREE.Box3().setFromObject(enemies[i].model.group);
+      return { min: box.min.toArray(), max: box.max.toArray() };
+    },
   };
 }

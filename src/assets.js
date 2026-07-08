@@ -10,15 +10,33 @@ const loader = new GLTFLoader();
 // Loads a GLB and returns { model, materials }. The model is wrapped in a
 // group whose origin sits at the feet, so `group.position.y = groundY`
 // just works like the primitive models do.
-export async function loadModel(url, { height = 1.4 } = {}) {
+export async function loadModel(url, { height = 1.4, rotation = null } = {}) {
   const gltf = await loader.loadAsync(url);
   const root = gltf.scene;
+
+  // some converters (e.g. TripoSR) use a different up-axis — fix it before
+  // measuring the bounding box
+  if (rotation) root.rotation.set(...rotation);
 
   const materials = [];
   root.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
       obj.receiveShadow = false;
+      // AI-generated meshes carry their color per vertex, often with a
+      // metallic PBR material baked in that renders nearly black — swap
+      // in a clean matte material that uses the vertex colors
+      if (obj.geometry.attributes.color) {
+        // lit materials need normals, which unlit exports omit entirely —
+        // without this the lighting math produces NaN and bloom smears
+        // the whole screen black
+        if (!obj.geometry.attributes.normal) obj.geometry.computeVertexNormals();
+        obj.material = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: 0.9,
+          metalness: 0,
+        });
+      }
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       materials.push(...mats);
     }

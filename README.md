@@ -82,8 +82,12 @@ code-built ones. Two ways to make them:
   `blender --background --python assets/blender/goblin.py` to regenerate
   `assets/goblin-blender.glb` (set `PREVIEW=1` to also render a preview
   image). Tweak the script, re-run, refresh the game.
-- **AI (image → 3D):** a full-body character image can be converted to a
-  GLB with an image-to-3D model and dropped into `assets/`.
+- **AI (image → 3D):** a full-body character image is converted to a GLB
+  with [TripoSR](https://github.com/VAST-AI-Research/TripoSR) (free, open
+  source, runs on CPU) via `tools/image-to-3d.sh`. `tools/prep-image.py`
+  cleans the image first (cuts the subject out of the background). The
+  goblin concept art in `assets/reference/` became `assets/goblin-ai.glb`
+  this way.
 
 To give a monster a GLB model, add a variant name to its den entry in
 `src/enemies.js` (e.g. `['goblin', 20, 12, 'blender']` loads

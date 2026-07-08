@@ -34,7 +34,9 @@ export function createSkills(definitions) {
       skill.el.classList.add('shake');
       return;
     }
-    skill.remaining = skill.cooldown;
+    // cooldown may be a function (talents can shorten it)
+    skill.currentCd = typeof skill.cooldown === 'function' ? skill.cooldown() : skill.cooldown;
+    skill.remaining = skill.currentCd;
   }
 
   window.addEventListener('keydown', (e) => {
@@ -49,7 +51,7 @@ export function createSkills(definitions) {
       s.el.classList.toggle('locked', locked);
       if (s.remaining > 0) {
         s.remaining = Math.max(0, s.remaining - dt);
-        s.cdEl.style.height = `${(s.remaining / s.cooldown) * 100}%`;
+        s.cdEl.style.height = `${(s.remaining / (s.currentCd || 1)) * 100}%`;
       } else {
         s.cdEl.style.height = '0%';
       }
@@ -62,7 +64,7 @@ export function createSkills(definitions) {
     // 0 = ready, 1 = just used (for external cooldown displays)
     remainingFrac: (id) => {
       const s = skills.find(x => x.id === id);
-      return s ? s.remaining / s.cooldown : 0;
+      return s && s.remaining > 0 ? s.remaining / (s.currentCd || 1) : 0;
     },
   };
 }

@@ -168,7 +168,7 @@ const TYPES = {
   boar:   { build: buildBoar,   hp: 70, damage: 14, chaseSpeed: 5.6, walkSpeed: 1.4, aggro: 12, range: 1.9, cooldown: 1.9 },
 };
 
-const RESPAWN_SECONDS = 30;
+const RESPAWN_SECONDS = 14;
 
 // hand-placed dens around the valley; the first goblin is close to the
 // player's spawn so there's something to fight right away. A fourth entry
@@ -177,8 +177,11 @@ const RESPAWN_SECONDS = 30;
 const DENS = [
   ['goblin', 16, 8, 'ai'], ['goblin', 20, 12, 'ai'], ['goblin', -60, -40, 'ai'], ['goblin', -64, -34, 'ai'],
   ['goblin', -55, -44, 'ai'], ['goblin', 85, 30, 'ai'], ['goblin', 90, 36, 'ai'], ['goblin', 82, 40, 'ai'],
+  ['goblin', -20, 60, 'ai'], ['goblin', -25, 55, 'ai'], ['goblin', 55, -30, 'ai'], ['goblin', 50, -25, 'ai'],
   ['wolf', 40, -70], ['wolf', 45, -65], ['wolf', 36, -63], ['wolf', -90, 80], ['wolf', -85, 85],
+  ['wolf', 100, 60], ['wolf', 105, 65], ['wolf', -40, -80], ['wolf', -35, -85],
   ['boar', -30, -15], ['boar', 60, 75], ['boar', -95, 10], ['boar', 25, 95], ['boar', 110, -30],
+  ['boar', -70, 40], ['boar', 10, -60], ['boar', 130, 20],
 ];
 
 // nudge a den position off water / cliffs
@@ -220,7 +223,7 @@ function makeHealthBar(height) {
 
 // Replace an enemy's primitive body with a loaded GLB model, keeping its
 // health bar, AI state and group transform untouched.
-function swapToGLB(e, bar, { model, materials }) {
+function swapToGLB(e, bar, { model, materials, animations }) {
   const g = e.model.group;
   for (const child of [...g.children]) {
     if (child !== bar.sprite) g.remove(child);
@@ -228,7 +231,20 @@ function swapToGLB(e, bar, { model, materials }) {
   g.add(model);
   e.model.visual = model;
   e.model.mats = materials;
-  e.model.limbs = { legs: [], arms: [] }; // no rigged limbs: whole-body animation
+  e.model.limbs = { legs: [], arms: [] }; // no primitive limbs to swing
+
+  // rigged models carry real animation clips — play them with a mixer
+  if (animations && animations.length) {
+    e.mixer = new THREE.AnimationMixer(model);
+    e.clips = {};
+    for (const clip of animations) {
+      e.clips[clip.name.toLowerCase()] = e.mixer.clipAction(clip);
+    }
+    if (e.clips.idle) {
+      e.clips.idle.play();
+      e.animState = 'idle';
+    }
+  }
 }
 
 export function createEnemies(scene) {
@@ -257,11 +273,12 @@ export function createEnemies(scene) {
     };
 
     if (variant) {
-      // per-variant load tweaks (TripoSR models come out lying face-down)
-      const opts = variant === 'ai'
-        ? { height: 1.45, rotation: [-Math.PI / 2, 0, 0] }
-        : { height: 1.45 };
-      loadModel(`./assets/${type}-${variant}.glb`, opts)
+      // NOTE: skeletal animation (see assets/blender/rig-goblin.py and the
+      // mixer support in swapToGLB) is ready, but this mesh's arms are
+      // fused to its body and deform badly — it needs a T-pose source
+      // image; until then the whole-body waddle animation is used.
+      // goblin-ai.glb is pre-cleaned and pre-oriented by clean-goblin.py.
+      loadModel(`./assets/${type}-${variant}.glb`, { height: 1.45 })
         .then((loaded) => swapToGLB(e, bar, loaded))
         .catch((err) => console.warn(`Model ${type}-${variant} not loaded, keeping primitive:`, err));
     }
@@ -298,6 +315,19 @@ export function createEnemies(scene) {
     const { limbs } = e.model;
     e.phase += dt * (moving > 0 ? 4 + moving * 1.6 : 2);
     const swing = moving > 0 ? Math.sin(e.phase) * 0.65 : 0;
+    if (e.mixer) {
+      // rigged model: crossfade between the real Idle/Walk clips and let
+      // the mixer drive the skeleton
+      e.mixer.update(dt);
+      const want = moving > 0 ? 'walk' : 'idle';
+      if (want !== e.animState && e.clips[want]) {
+        e.clips[e.animState]?.fadeOut(0.18);
+        e.clips[want].reset().fadeIn(0.18).play();
+        e.animState = want;
+      }
+      if (e.clips.walk) e.clips.walk.timeScale = 0.7 + moving * 0.16;
+      return;
+    }
     if (limbs.legs.length === 0) {
       // GLB model without rigged limbs: a lively whole-body waddle —
       // hopping with squash-and-stretch, rocking side to side and
@@ -310,11 +340,22 @@ export function createEnemies(scene) {
           v.scale.y = 0.94 + hop * 0.1;              // squash on landing
           v.rotation.z = Math.sin(e.phase) * 0.14;   // waddle roll
           v.rotation.x = 0.16 + Math.cos(e.phase * 2) * 0.05; // lean + bounce
+        } else if (e.windup > 0) {
+          // attack telegraph: rear back and coil, then lunge into the blow
+          if (e.windup > 0.15) {
+            v.rotation.x = -0.3;
+            v.rotation.z = -0.25;
+            v.position.y = 0.06;
+          } else {
+            v.rotation.x = 0.45;   // violent forward lunge as the club lands
+            v.rotation.z = 0.3;
+            v.position.y = 0;
+          }
         } else {
           v.position.y = Math.sin(e.phase * 0.5) * 0.02;
           v.scale.y = 1 + Math.sin(e.phase * 0.5) * 0.015;   // breathing
           v.rotation.z = Math.sin(e.phase * 0.25) * 0.03;
-          v.rotation.x = e.windup > 0 ? -0.25 : 0;   // rear back before striking
+          v.rotation.x = 0;
         }
       }
     } else if (limbs.legs.length === 4) {
@@ -389,6 +430,11 @@ export function createEnemies(scene) {
       } else if (dist < e.stats.range && e.cooldown <= 0) {
         e.windup = 0.35;
         e.cooldown = e.stats.cooldown;
+        if (e.clips?.attack) {
+          // play the club swing so the blow lands as the windup ends
+          e.clips.attack.reset().setLoop(THREE.LoopOnce).play();
+          e.clips.attack.timeScale = 1.2;
+        }
       } else if (dist < e.stats.aggro || (e.state === 'chase' && dist < 35)) {
         e.state = 'chase';
         if (dist > e.stats.range * 0.85) {
@@ -473,6 +519,7 @@ export function createEnemies(scene) {
     snapshot: () => enemies.map((e) => ({
       type: e.type, hp: e.hp, state: e.state,
       x: e.model.group.position.x, z: e.model.group.position.z,
+      rotY: e.model.group.rotation.y, glb: !!e.model.visual,
     })),
     // debug: world bounding box of an enemy's model (test hook)
     boxOf: (i) => {

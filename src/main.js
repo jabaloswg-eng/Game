@@ -10,6 +10,7 @@ import { createParticles } from './particles.js';
 import { createProgression } from './progression.js';
 import { createSkills } from './skills.js';
 import { initTouch } from './touch.js';
+import { createTalentsUI } from './talents.js';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
@@ -88,6 +89,7 @@ function refreshHpBar() {
 
 function hurtPlayer(amount, fromPos) {
   if (dead) return;
+  if (progression.has('v3')) amount = Math.round(amount * 0.85); // Stoneskin
   hp -= amount;
   lastHurt = elapsed;
   refreshHpBar();
@@ -115,6 +117,8 @@ function hurtPlayer(amount, fromPos) {
     }, 1800);
   }
 }
+
+const talentsUI = createTalentsUI(progression, () => refreshHpBar());
 
 function onKill(type, atPos) {
   particles.spawn(atPos.clone().setY(atPos.y + 0.8), {
@@ -150,7 +154,8 @@ function tryCharge() {
 }
 
 const skills = createSkills([
-  { id: 'charge', name: 'Charge', key: '1', icon: '⚡', cooldown: 8, unlockLevel: 1, use: tryCharge },
+  { id: 'charge', name: 'Charge', key: '1', icon: '⚡', unlockLevel: 1, use: tryCharge,
+    cooldown: () => (progression.has('w2') ? 6 : 8) },
 ]);
 
 // --- Dash (E key / touch button): a quick burst in the movement direction ---
@@ -173,7 +178,7 @@ function tryDash() {
     dashDir.set(Math.sin(hero.group.rotation.y), 0, Math.cos(hero.group.rotation.y));
   }
   dashT = DASH_TIME;
-  dashCd = DASH_COOLDOWN;
+  dashCd = DASH_COOLDOWN - (progression.has('a2') ? 0.6 : 0); // Wind Step
 }
 
 const touchUI = initTouch({
@@ -229,7 +234,8 @@ function updateCombat(dt) {
   if (hero.consumeStrike()) {
     const wasCharge = chargeStrike;
     chargeStrike = false;
-    const damage = Math.round(progression.swordDamage() * (wasCharge ? CHARGE_BONUS : 1));
+    const chargeBonus = progression.has('w4') ? 2.2 : CHARGE_BONUS; // Devastating Charge
+    const damage = Math.round(progression.swordDamage() * (wasCharge ? chargeBonus : 1));
     // the charge slash reaches a bit farther, so a last-instant knockback
     // can't push the target out of reach
     const hits = enemies.damageCone(
@@ -254,7 +260,8 @@ function updateCombat(dt) {
 
   // slow regeneration once out of combat for a while
   if (!dead && hp < progression.maxHp() && elapsed - lastHurt > 6) {
-    hp = Math.min(progression.maxHp(), hp + 2.5 * dt);
+    const regen = 2.5 + (progression.has('v2') ? 2.5 : 0); // Quick Mending
+    hp = Math.min(progression.maxHp(), hp + regen * dt);
     refreshHpBar();
   }
 
@@ -273,6 +280,8 @@ const MAX_WADE_DEPTH = 0.9; // how deep the hero may walk into the lake
 const velocity = new THREE.Vector3();
 let verticalVel = 0;
 let grounded = true;
+let prevJumpHeld = false;
+let airJumps = 0;
 
 function canStandAt(x, z) {
   return terrainHeight(x, z) > WATER_LEVEL - MAX_WADE_DEPTH;
@@ -288,7 +297,11 @@ function updatePlayer(dt) {
 
   const pos = hero.group.position;
   const move = dead ? new THREE.Vector3() : controls.moveVector();
-  const targetSpeed = controls.wantsSprint() ? SPRINT_SPEED : WALK_SPEED;
+  const speedMult = progression.has('a1') ? 1.1 : 1;                    // Fleet Foot
+  const sprintMult = progression.has('a3') ? 1.12 : 1;                  // Sprinter
+  const targetSpeed = controls.wantsSprint()
+    ? SPRINT_SPEED * speedMult * sprintMult
+    : WALK_SPEED * speedMult;
 
   if (!dead && controls.consumeDash()) tryDash();
 
@@ -317,11 +330,22 @@ function updatePlayer(dt) {
   if (stuck || canStandAt(nx, pos.z)) pos.x = nx; else velocity.x = 0;
   if (stuck || canStandAt(pos.x, nz)) pos.z = nz; else velocity.z = 0;
 
-  // jumping and gravity
-  if (grounded && controls.wantsJump()) {
-    verticalVel = JUMP_VELOCITY;
-    grounded = false;
+  // jumping and gravity (Sky Hop talent allows one mid-air jump)
+  const jumpHeld = controls.wantsJump();
+  if (jumpHeld && !prevJumpHeld) {
+    if (grounded) {
+      verticalVel = JUMP_VELOCITY;
+      grounded = false;
+      airJumps = 0;
+    } else if (progression.has('a4') && airJumps < 1) {
+      verticalVel = JUMP_VELOCITY * 0.95;
+      airJumps++;
+      particles.spawn(pos.clone().setY(pos.y + 0.2), {
+        count: 8, color: 0xcfe8ff, speed: 3, life: 0.35, gravity: -2, spread: 1,
+      });
+    }
   }
+  prevJumpHeld = jumpHeld;
   verticalVel += GRAVITY * dt;
   pos.y += verticalVel * dt;
 
@@ -430,6 +454,10 @@ window.__game = {
   useSkill(id) { skills.trigger(id); },
   dash() { tryDash(); },
   get dashing() { return dashT > 0; },
+  get talents() { return progression.talents; },
+  get talentPoints() { return progression.availablePoints(); },
+  learn(id) { return progression.learn(id); },
+  openTalents() { talentsUI.toggle(true); },
   boxOf(i) { return enemies.boxOf(i); },
   // debug: report all large meshes in the scene (test hook)
   sceneReport() {

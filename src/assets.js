@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from '../vendor/jsm/utils/SkeletonUtils.js';
 
 const loader = new GLTFLoader();
 
@@ -17,7 +18,7 @@ const cache = new Map();
 export async function loadModel(url, { height = 1.4, rotation = null } = {}) {
   if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
   const gltf = await cache.get(url);
-  const root = gltf.scene.clone(true);
+  const root = cloneSkinned(gltf.scene); // handles skinned meshes correctly
 
   // some converters (e.g. TripoSR) use a different up-axis — fix it before
   // measuring the bounding box
@@ -61,5 +62,5 @@ export async function loadModel(url, { height = 1.4, rotation = null } = {}) {
 
   const wrapper = new THREE.Group();
   wrapper.add(root);
-  return { model: wrapper, materials };
+  return { model: wrapper, materials, animations: gltf.animations || [] };
 }

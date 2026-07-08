@@ -206,6 +206,75 @@
       25% { transform: translateX(-4px); }
       75% { transform: translateX(4px); }
     }
+    /* ---- talent tree ---- */
+    #levelbadge { cursor: pointer; position: relative; }
+    #levelbadge.points::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #b388ff;
+      box-shadow: 0 0 8px #b388ff;
+    }
+    #talents {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 14, 24, 0.8);
+      z-index: 20;
+      backdrop-filter: blur(3px);
+    }
+    #talents.hidden { display: none; }
+    #talents-inner {
+      background: rgba(14, 30, 48, 0.97);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      border-radius: 14px;
+      padding: 18px 22px;
+      color: #e8f2fa;
+      max-width: 860px;
+      width: 92vw;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    #talents-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    #talents-head h2 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+    #talent-points { color: #b388ff; font-weight: 600; }
+    #talents-close {
+      cursor: pointer;
+      font-size: 22px;
+      padding: 2px 10px;
+      border-radius: 8px;
+      background: rgba(232, 242, 250, 0.12);
+    }
+    #talent-columns { display: flex; gap: 14px; flex-wrap: wrap; }
+    .talent-branch { flex: 1; min-width: 180px; }
+    .branch-title { font-weight: 700; letter-spacing: 1px; margin-bottom: 8px; }
+    .talent-node {
+      border: 2px solid rgba(232, 242, 250, 0.2);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .talent-node.can {
+      border-color: #b388ff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(179, 136, 255, 0.35);
+    }
+    .talent-node.can:hover { background: rgba(179, 136, 255, 0.15); }
+    .talent-node.locked { opacity: 0.45; }
+    .talent-node.owned { background: rgba(232, 242, 250, 0.08); }
+    .node-name { font-weight: 600; font-size: 14px; }
+    .node-desc { font-size: 12px; opacity: 0.8; margin-top: 2px; }
     /* ---- touch controls (phones/tablets only) ---- */
     #game, #joystick, .tbtn { touch-action: none; -webkit-user-select: none; user-select: none; }
     #touch-ui { display: none; }
@@ -260,9 +329,9 @@
     /* layout: big attack in the corner, charge left of it, dash above, small jump tucked between */
     #btn-attack { right: max(24px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); width: 86px; height: 86px; }
     #btn-attack .btn-icon { font-size: 36px; }
-    #btn-charge { right: 122px; bottom: 30px; width: 62px; height: 62px; }
-    #btn-dash   { right: 34px;  bottom: 128px; width: 56px; height: 56px; }
-    #btn-jump   { right: 112px; bottom: 108px; width: 46px; height: 46px; }
+    #btn-charge { right: 130px; bottom: 26px; width: 62px; height: 62px; }
+    #btn-dash   { right: 22px;  bottom: 148px; width: 56px; height: 56px; }
+    #btn-jump   { right: 148px; bottom: 112px; width: 46px; height: 46px; }
     #btn-jump .btn-icon { font-size: 20px; }
     #damage-flash {
       position: fixed;
@@ -306,6 +375,16 @@
     <div id="xpbar"><div id="xpfill"></div></div>
   </div>
   <div id="levelup">LEVEL UP!</div>
+  <div id="talents" class="hidden">
+    <div id="talents-inner">
+      <div id="talents-head">
+        <h2>TALENTS</h2>
+        <span id="talent-points">Skill points: 0</span>
+        <span id="talents-close">✕</span>
+      </div>
+      <div id="talent-columns"></div>
+    </div>
+  </div>
   <div id="skillbar"></div>
   <div id="touch-ui">
     <div id="joystick"><div id="joy-stick"></div></div>

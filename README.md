@@ -13,6 +13,7 @@ that live there.
 | **Click** (or **J**) | Attack with your sword |
 | **1** | Charge — rush to a distant enemy and land an empowered slash |
 | **E** | Dash — a quick burst of speed in your movement direction |
+| **T** (or click your level badge) | Open the talent tree |
 | **Shift** | Sprint |
 | **Space** | Jump |
 | **Drag the mouse** | Look around |
@@ -47,6 +48,11 @@ skill is **Charge** (key 1): if an enemy is within ~25 meters, your hero
 rushes it at blinding speed and lands a slash that hits 60% harder.
 Eight-second cooldown. More skills will unlock at higher levels in
 future versions.
+
+Each level up also grants a **skill point** for the talent tree (press
+T or tap your level badge): three branches — Warrior (damage and Charge
+upgrades), Agility (speed, Dash, a double jump) and Vitality (health,
+regeneration, damage reduction). Talents are saved with your progress.
 
 ## Running the game
 

@@ -68,7 +68,26 @@ then open <http://localhost:8000> in your browser.
 | `src/progression.js` | XP, levels, and saving progress in the browser |
 | `src/skills.js` | The skill bar: triggers, cooldowns, level unlocks |
 | `src/textures.js` | Procedural textures (grass, bark, water ripples) painted in code |
-| `vendor/jsm/` | Three.js post-processing add-ons (the bloom/glow effect) |
+| `src/assets.js` | Loads real 3D models (GLB files) and preps them for the game |
+| `assets/` | 3D model files and the Blender scripts that generate them |
+| `vendor/jsm/` | Three.js add-ons (bloom/glow effect, GLB model loader) |
+
+## Asset pipeline
+
+The game can now use real 3D models (`.glb` files) alongside its
+code-built ones. Two ways to make them:
+
+- **Blender (scripted):** `assets/blender/goblin.py` builds the masked
+  tribal goblin from scratch — run
+  `blender --background --python assets/blender/goblin.py` to regenerate
+  `assets/goblin-blender.glb` (set `PREVIEW=1` to also render a preview
+  image). Tweak the script, re-run, refresh the game.
+- **AI (image → 3D):** a full-body character image can be converted to a
+  GLB with an image-to-3D model and dropped into `assets/`.
+
+To give a monster a GLB model, add a variant name to its den entry in
+`src/enemies.js` (e.g. `['goblin', 20, 12, 'blender']` loads
+`assets/goblin-blender.glb`).
 | `vendor/three.module.js` | [Three.js](https://threejs.org), the 3D graphics library the game is built on |
 | `.github/workflows/pages.yml` | Automatically publishes the game to GitHub Pages on every update |
 

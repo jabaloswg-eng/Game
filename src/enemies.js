@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { terrainHeight, WATER_LEVEL } from './world.js';
+import { loadModel } from './assets.js';
 
 function mat(color) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
@@ -170,9 +171,11 @@ const TYPES = {
 const RESPAWN_SECONDS = 30;
 
 // hand-placed dens around the valley; the first goblin is close to the
-// player's spawn so there's something to fight right away
+// player's spawn so there's something to fight right away. A fourth entry
+// names a GLB model variant from the assets/ folder (e.g. 'blender' loads
+// assets/goblin-blender.glb in place of the built-in primitive model).
 const DENS = [
-  ['goblin', 16, 8], ['goblin', 20, 12], ['goblin', -60, -40], ['goblin', -64, -34],
+  ['goblin', 16, 8], ['goblin', 20, 12, 'blender'], ['goblin', -60, -40], ['goblin', -64, -34],
   ['goblin', -55, -44], ['goblin', 85, 30], ['goblin', 90, 36], ['goblin', 82, 40],
   ['wolf', 40, -70], ['wolf', 45, -65], ['wolf', 36, -63], ['wolf', -90, 80], ['wolf', -85, 85],
   ['boar', -30, -15], ['boar', 60, 75], ['boar', -95, 10], ['boar', 25, 95], ['boar', 110, -30],
@@ -215,8 +218,21 @@ function makeHealthBar(height) {
   return { sprite, redraw };
 }
 
+// Replace an enemy's primitive body with a loaded GLB model, keeping its
+// health bar, AI state and group transform untouched.
+function swapToGLB(e, bar, { model, materials }) {
+  const g = e.model.group;
+  for (const child of [...g.children]) {
+    if (child !== bar.sprite) g.remove(child);
+  }
+  g.add(model);
+  e.model.visual = model;
+  e.model.mats = materials;
+  e.model.limbs = { legs: [], arms: [] }; // no rigged limbs: whole-body animation
+}
+
 export function createEnemies(scene) {
-  const enemies = DENS.map(([type, dx, dz]) => {
+  const enemies = DENS.map(([type, dx, dz, variant]) => {
     const stats = TYPES[type];
     const { x, z } = settle(dx, dz);
     const model = stats.build();
@@ -226,7 +242,7 @@ export function createEnemies(scene) {
     const bar = makeHealthBar(model.barHeight);
     model.group.add(bar.sprite);
 
-    return {
+    const e = {
       type, stats, model, bar,
       hp: stats.hp,
       home: new THREE.Vector2(x, z),
@@ -239,6 +255,14 @@ export function createEnemies(scene) {
       phase: Math.random() * 10,
       deadTimer: 0,
     };
+
+    if (variant) {
+      loadModel(`./assets/${type}-${variant}.glb`, { height: 1.45 })
+        .then((loaded) => swapToGLB(e, bar, loaded))
+        .catch((err) => console.warn(`Model ${type}-${variant} not loaded, keeping primitive:`, err));
+    }
+
+    return e;
   });
 
   function canStand(x, z) {
@@ -270,7 +294,15 @@ export function createEnemies(scene) {
     const { limbs } = e.model;
     e.phase += dt * (moving > 0 ? 4 + moving * 1.6 : 2);
     const swing = moving > 0 ? Math.sin(e.phase) * 0.65 : 0;
-    if (limbs.legs.length === 4) {
+    if (limbs.legs.length === 0) {
+      // GLB model without rigged limbs: hop while moving, breathe while idle
+      const v = e.model.visual;
+      if (v) {
+        v.position.y = moving > 0
+          ? Math.abs(Math.sin(e.phase)) * 0.14
+          : Math.sin(e.phase * 0.5) * 0.02;
+      }
+    } else if (limbs.legs.length === 4) {
       // quadruped trot: diagonal legs move together
       limbs.legs[0].rotation.x = swing;
       limbs.legs[3].rotation.x = swing;
@@ -323,6 +355,7 @@ export function createEnemies(scene) {
         e.flash -= dt;
         const on = e.flash > 0;
         for (const m of e.model.mats) {
+          if (!m.emissive) continue; // some GLB materials have no emissive
           m.emissive.setHex(on ? 0xff3b30 : 0x000000);
           m.emissiveIntensity = on ? 0.7 : 0;
         }

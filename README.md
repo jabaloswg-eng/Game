@@ -23,6 +23,11 @@ joystick on the left to move (push it all the way to sprint), and
 Attack / Charge / Dash / Jump buttons on the right. Drag anywhere else
 on the screen to look around.
 
+**Install it like an app:** open the game in your phone's browser and
+choose *Add to Home Screen* (in Safari: share button → Add to Home
+Screen). It gets its own icon, launches fullscreen, and keeps working
+even offline.
+
 Monsters wander near their dens. Get too close and they'll chase you —
 goblins swing clubs, wolves are fast, boars hit hard. Your health bar is
 in the top-left corner; it slowly recovers once you're out of combat, and

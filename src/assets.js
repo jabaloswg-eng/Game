@@ -7,12 +7,17 @@ import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js';
 
 const loader = new GLTFLoader();
 
+// each GLB downloads once; every caller gets its own clone (shared
+// geometry on the GPU, so extra copies are cheap)
+const cache = new Map();
+
 // Loads a GLB and returns { model, materials }. The model is wrapped in a
 // group whose origin sits at the feet, so `group.position.y = groundY`
 // just works like the primitive models do.
 export async function loadModel(url, { height = 1.4, rotation = null } = {}) {
-  const gltf = await loader.loadAsync(url);
-  const root = gltf.scene;
+  if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
+  const gltf = await cache.get(url);
+  const root = gltf.scene.clone(true);
 
   // some converters (e.g. TripoSR) use a different up-axis — fix it before
   // measuring the bounding box

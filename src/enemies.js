@@ -175,8 +175,8 @@ const RESPAWN_SECONDS = 30;
 // names a GLB model variant from the assets/ folder (e.g. 'blender' loads
 // assets/goblin-blender.glb in place of the built-in primitive model).
 const DENS = [
-  ['goblin', 16, 8, 'ai'], ['goblin', 20, 12, 'blender'], ['goblin', -60, -40], ['goblin', -64, -34],
-  ['goblin', -55, -44], ['goblin', 85, 30], ['goblin', 90, 36], ['goblin', 82, 40],
+  ['goblin', 16, 8, 'ai'], ['goblin', 20, 12, 'ai'], ['goblin', -60, -40, 'ai'], ['goblin', -64, -34, 'ai'],
+  ['goblin', -55, -44, 'ai'], ['goblin', 85, 30, 'ai'], ['goblin', 90, 36, 'ai'], ['goblin', 82, 40, 'ai'],
   ['wolf', 40, -70], ['wolf', 45, -65], ['wolf', 36, -63], ['wolf', -90, 80], ['wolf', -85, 85],
   ['boar', -30, -15], ['boar', 60, 75], ['boar', -95, 10], ['boar', 25, 95], ['boar', 110, -30],
 ];
@@ -299,12 +299,23 @@ export function createEnemies(scene) {
     e.phase += dt * (moving > 0 ? 4 + moving * 1.6 : 2);
     const swing = moving > 0 ? Math.sin(e.phase) * 0.65 : 0;
     if (limbs.legs.length === 0) {
-      // GLB model without rigged limbs: hop while moving, breathe while idle
+      // GLB model without rigged limbs: a lively whole-body waddle —
+      // hopping with squash-and-stretch, rocking side to side and
+      // leaning into the run; slow breathing sway while idle
       const v = e.model.visual;
       if (v) {
-        v.position.y = moving > 0
-          ? Math.abs(Math.sin(e.phase)) * 0.14
-          : Math.sin(e.phase * 0.5) * 0.02;
+        if (moving > 0) {
+          const hop = Math.abs(Math.sin(e.phase));
+          v.position.y = hop * 0.22;
+          v.scale.y = 0.94 + hop * 0.1;              // squash on landing
+          v.rotation.z = Math.sin(e.phase) * 0.14;   // waddle roll
+          v.rotation.x = 0.16 + Math.cos(e.phase * 2) * 0.05; // lean + bounce
+        } else {
+          v.position.y = Math.sin(e.phase * 0.5) * 0.02;
+          v.scale.y = 1 + Math.sin(e.phase * 0.5) * 0.015;   // breathing
+          v.rotation.z = Math.sin(e.phase * 0.25) * 0.03;
+          v.rotation.x = e.windup > 0 ? -0.25 : 0;   // rear back before striking
+        }
       }
     } else if (limbs.legs.length === 4) {
       // quadruped trot: diagonal legs move together

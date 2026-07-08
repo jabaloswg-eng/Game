@@ -56,5 +56,13 @@ export function createSkills(definitions) {
     }
   }
 
-  return { update, trigger: (id) => { const s = skills.find(x => x.id === id); if (s) trigger(s); } };
+  return {
+    update,
+    trigger: (id) => { const s = skills.find(x => x.id === id); if (s) trigger(s); },
+    // 0 = ready, 1 = just used (for external cooldown displays)
+    remainingFrac: (id) => {
+      const s = skills.find(x => x.id === id);
+      return s ? s.remaining / s.cooldown : 0;
+    },
+  };
 }

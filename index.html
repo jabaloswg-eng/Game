@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>The Valley — an open world adventure</title>
   <style>
     html, body {
@@ -200,6 +200,64 @@
       25% { transform: translateX(-4px); }
       75% { transform: translateX(4px); }
     }
+    /* ---- touch controls (phones/tablets only) ---- */
+    #game, #joystick, .tbtn { touch-action: none; -webkit-user-select: none; user-select: none; }
+    #touch-ui { display: none; }
+    body.touch #touch-ui { display: block; }
+    body.touch #hint { display: none; }
+    body.touch #skillbar { display: none; }
+    #joystick {
+      position: fixed;
+      left: max(22px, env(safe-area-inset-left));
+      bottom: max(26px, env(safe-area-inset-bottom));
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      background: rgba(10, 25, 40, 0.35);
+      border: 2px solid rgba(232, 242, 250, 0.35);
+      z-index: 6;
+    }
+    #joy-stick {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 56px;
+      height: 56px;
+      margin: -28px 0 0 -28px;
+      border-radius: 50%;
+      background: rgba(232, 242, 250, 0.55);
+      pointer-events: none;
+    }
+    .tbtn {
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(10, 25, 40, 0.5);
+      border: 2px solid rgba(232, 242, 250, 0.45);
+      color: #e8f2fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 6;
+      overflow: hidden;
+    }
+    .tbtn.pressed { background: rgba(90, 140, 190, 0.6); }
+    .tbtn .btn-icon { font-size: 26px; line-height: 1; }
+    .tbtn .btn-label { font-size: 9px; letter-spacing: 1px; margin-top: 2px; opacity: 0.85; }
+    .btn-cd {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 0%;
+      background: rgba(15, 30, 45, 0.75);
+      pointer-events: none;
+    }
+    /* layout: big attack in the corner, charge left of it, dash above, small jump tucked between */
+    #btn-attack { right: max(24px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); width: 86px; height: 86px; }
+    #btn-attack .btn-icon { font-size: 36px; }
+    #btn-charge { right: 122px; bottom: 30px; width: 62px; height: 62px; }
+    #btn-dash   { right: 34px;  bottom: 128px; width: 56px; height: 56px; }
+    #btn-jump   { right: 112px; bottom: 108px; width: 46px; height: 46px; }
+    #btn-jump .btn-icon { font-size: 20px; }
     #damage-flash {
       position: fixed;
       inset: 0;
@@ -243,11 +301,18 @@
   </div>
   <div id="levelup">LEVEL UP!</div>
   <div id="skillbar"></div>
+  <div id="touch-ui">
+    <div id="joystick"><div id="joy-stick"></div></div>
+    <div class="tbtn" id="btn-attack"><span class="btn-icon">⚔️</span><span class="btn-label">ATTACK</span></div>
+    <div class="tbtn" id="btn-charge"><span class="btn-icon">⚡</span><span class="btn-label">CHARGE</span><div class="btn-cd"></div></div>
+    <div class="tbtn" id="btn-dash"><span class="btn-icon">💨</span><span class="btn-label">DASH</span></div>
+    <div class="tbtn" id="btn-jump"><span class="btn-icon">⬆</span></div>
+  </div>
   <div id="damage-flash"></div>
   <div id="death">YOU WERE DEFEATED</div>
   <div id="hint">
-    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>Shift</b> sprint
-    &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag mouse</b> look &nbsp;·&nbsp; <b>Scroll</b> zoom
+    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>E</b> dash
+    &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag mouse</b> look &nbsp;·&nbsp; <b>Scroll</b> zoom
   </div>
   <script type="module" src="./src/main.js"></script>
 </body>

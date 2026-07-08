@@ -11,11 +11,17 @@ that live there.
 |---|---|
 | **W A S D** (or arrow keys) | Move |
 | **Click** (or **J**) | Attack with your sword |
-| **1** | Charge — dash to a distant enemy and land an empowered slash |
+| **1** | Charge — rush to a distant enemy and land an empowered slash |
+| **E** | Dash — a quick burst of speed in your movement direction |
 | **Shift** | Sprint |
 | **Space** | Jump |
 | **Drag the mouse** | Look around |
 | **Scroll wheel** | Zoom in / out |
+
+**On phones and tablets** the game shows touch controls instead: a
+joystick on the left to move (push it all the way to sprint), and
+Attack / Charge / Dash / Jump buttons on the right. Drag anywhere else
+on the screen to look around.
 
 Monsters wander near their dens. Get too close and they'll chase you —
 goblins swing clubs, wolves are fast, boars hit hard. Your health bar is

@@ -9,6 +9,7 @@ import { createFX } from './fx.js';
 import { createParticles } from './particles.js';
 import { createProgression } from './progression.js';
 import { createSkills } from './skills.js';
+import { initTouch } from './touch.js';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
@@ -152,6 +153,36 @@ const skills = createSkills([
   { id: 'charge', name: 'Charge', key: '1', icon: '⚡', cooldown: 8, unlockLevel: 1, use: tryCharge },
 ]);
 
+// --- Dash (E key / touch button): a quick burst in the movement direction ---
+
+const DASH_SPEED = 26;
+const DASH_TIME = 0.16;
+const DASH_COOLDOWN = 1.6;
+
+let dashT = 0;
+let dashCd = 0;
+const dashDir = new THREE.Vector3();
+
+function tryDash() {
+  if (dashCd > 0 || dead || charging) return;
+  const move = controls.moveVector();
+  if (move.lengthSq() > 0) {
+    dashDir.copy(move);
+  } else {
+    // standing still: dash the way the hero faces
+    dashDir.set(Math.sin(hero.group.rotation.y), 0, Math.cos(hero.group.rotation.y));
+  }
+  dashT = DASH_TIME;
+  dashCd = DASH_COOLDOWN;
+}
+
+const touchUI = initTouch({
+  controls,
+  onDash: tryDash,
+  onCharge: () => skills.trigger('charge'),
+  chargeCooldownFrac: () => skills.remainingFrac('charge'),
+});
+
 function updateCharge(dt) {
   if (!charging) return;
   const pos = hero.group.position;
@@ -228,6 +259,7 @@ function updateCombat(dt) {
   }
 
   skills.update(dt, progression.level);
+  if (touchUI) touchUI.update();
 }
 
 // --- player physics ---------------------------------------------------------
@@ -258,11 +290,24 @@ function updatePlayer(dt) {
   const move = dead ? new THREE.Vector3() : controls.moveVector();
   const targetSpeed = controls.wantsSprint() ? SPRINT_SPEED : WALK_SPEED;
 
-  // ease horizontal velocity toward the input direction
-  const target = move.multiplyScalar(targetSpeed);
-  const ease = 1 - Math.exp(-10 * dt);
-  velocity.x += (target.x - velocity.x) * ease;
-  velocity.z += (target.z - velocity.z) * ease;
+  if (!dead && controls.consumeDash()) tryDash();
+
+  // ease horizontal velocity toward the input direction; a dash overrides
+  // it completely for its brief burst
+  if (dashT > 0) {
+    dashT -= dt;
+    velocity.x = dashDir.x * DASH_SPEED;
+    velocity.z = dashDir.z * DASH_SPEED;
+    particles.spawn(pos.clone().setY(pos.y + 0.9), {
+      count: 3, color: 0xe8f4ff, speed: 1, life: 0.3, size: 0.16, gravity: 0,
+    });
+  } else {
+    const target = move.multiplyScalar(targetSpeed);
+    const ease = 1 - Math.exp(-10 * dt);
+    velocity.x += (target.x - velocity.x) * ease;
+    velocity.z += (target.z - velocity.z) * ease;
+  }
+  dashCd = Math.max(0, dashCd - dt);
 
   // try each axis separately so the hero slides along the lake shore;
   // if already in deep water somehow, always allow moving (to escape)
@@ -308,7 +353,7 @@ const camTarget = new THREE.Vector3();
 
 // the camera's field of view widens during a Charge for a sense of speed
 function updateFov(dt) {
-  const targetFov = charging ? 72 : 60;
+  const targetFov = charging ? 72 : dashT > 0 ? 66 : 60;
   camera.fov += (targetFov - camera.fov) * Math.min(1, 8 * dt);
   camera.updateProjectionMatrix();
 }
@@ -383,6 +428,8 @@ window.__game = {
   groundAt(x, z) { return terrainHeight(x, z); },
   setYaw(y) { hero.group.rotation.y = y; },
   useSkill(id) { skills.trigger(id); },
+  dash() { tryDash(); },
+  get dashing() { return dashT > 0; },
   boxOf(i) { return enemies.boxOf(i); },
   // debug: report all large meshes in the scene (test hook)
   sceneReport() {

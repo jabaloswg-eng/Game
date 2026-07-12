@@ -26,7 +26,8 @@ export function createSkills(definitions) {
   let currentLevel = 1;
 
   function trigger(skill) {
-    if (skill.remaining > 0 || currentLevel < skill.unlockLevel) return;
+    // a skill may define bypass() to ignore its own cooldown (Echo Charge)
+    if ((skill.remaining > 0 && !skill.bypass?.()) || currentLevel < skill.unlockLevel) return;
     if (!skill.use()) {
       // cast failed (e.g. no target in range) — shake the slot as feedback
       skill.el.classList.remove('shake');

@@ -206,6 +206,69 @@
       25% { transform: translateX(-4px); }
       75% { transform: translateX(4px); }
     }
+    /* ---- gold + bag ---- */
+    #goldrow { margin-top: 5px; font-size: 14px; color: #ffd97a; font-weight: 600; }
+    #bagbtn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: rgba(10, 25, 40, 0.55);
+      border: 1px solid rgba(232, 242, 250, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 6;
+      user-select: none;
+      touch-action: none;
+    }
+    #bag {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 14, 24, 0.75);
+      z-index: 19;
+      backdrop-filter: blur(3px);
+    }
+    #bag.hidden { display: none; }
+    #bag-inner {
+      background: rgba(14, 30, 48, 0.97);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      border-radius: 14px;
+      padding: 18px 22px;
+      color: #e8f2fa;
+      width: min(92vw, 420px);
+    }
+    #bag-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    #bag-head h2 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+    #bag-close { cursor: pointer; font-size: 22px; padding: 2px 10px; border-radius: 8px; background: rgba(232, 242, 250, 0.12); }
+    .bag-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(232, 242, 250, 0.06);
+      margin-bottom: 8px;
+    }
+    .bag-icon { font-size: 28px; }
+    .bag-label { flex: 1; }
+    .bag-label .sub { font-size: 12px; opacity: 0.7; }
+    #bag-use-potion {
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: linear-gradient(180deg, #3fbf5a, #2e9245);
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    #bag-use-potion.disabled { filter: grayscale(1) brightness(0.6); cursor: default; }
     /* ---- talent tree ---- */
     #levelbadge { cursor: pointer; position: relative; }
     #levelbadge.points::after {
@@ -329,9 +392,10 @@
     /* layout: big attack in the corner, charge left of it, dash above, small jump tucked between */
     #btn-attack { right: max(24px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); width: 86px; height: 86px; }
     #btn-attack .btn-icon { font-size: 36px; }
-    #btn-charge { right: 130px; bottom: 26px; width: 62px; height: 62px; }
+    #btn-charge { right: 128px; bottom: 26px; width: 62px; height: 62px; }
+    #btn-slash  { right: 208px; bottom: 30px; width: 58px; height: 58px; }
     #btn-dash   { right: 22px;  bottom: 148px; width: 56px; height: 56px; }
-    #btn-jump   { right: 148px; bottom: 112px; width: 46px; height: 46px; }
+    #btn-jump   { right: 150px; bottom: 110px; width: 46px; height: 46px; }
     #btn-jump .btn-icon { font-size: 20px; }
     #damage-flash {
       position: fixed;
@@ -373,6 +437,27 @@
     <div id="toprow"><span id="levelbadge">Lv 1</span> HP</div>
     <div id="hpbar"><div id="hpfill"></div></div>
     <div id="xpbar"><div id="xpfill"></div></div>
+    <div id="goldrow">🪙 <span id="goldcount">0</span></div>
+  </div>
+  <div id="bagbtn">🎒</div>
+  <div id="bag" class="hidden">
+    <div id="bag-inner">
+      <div id="bag-head">
+        <h2>BAG</h2>
+        <span id="bag-close">✕</span>
+      </div>
+      <div class="bag-row">
+        <span class="bag-icon">🪙</span>
+        <span class="bag-label">Gold<div class="sub">The valley's currency</div></span>
+        <b id="bag-gold">0</b>
+      </div>
+      <div class="bag-row">
+        <span class="bag-icon">🧪</span>
+        <span class="bag-label">Health Potion<div class="sub">Restores 50 HP</div></span>
+        <span id="bag-potion-count">× 0</span>
+        <span id="bag-use-potion">Use</span>
+      </div>
+    </div>
   </div>
   <div id="levelup">LEVEL UP!</div>
   <div id="talents" class="hidden">
@@ -390,14 +475,15 @@
     <div id="joystick"><div id="joy-stick"></div></div>
     <div class="tbtn" id="btn-attack"><span class="btn-icon">⚔️</span><span class="btn-label">ATTACK</span></div>
     <div class="tbtn" id="btn-charge"><span class="btn-icon">⚡</span><span class="btn-label">CHARGE</span><div class="btn-cd"></div></div>
+    <div class="tbtn" id="btn-slash"><span class="btn-icon">🗡️</span><span class="btn-label">SLASH</span><div class="btn-cd"></div></div>
     <div class="tbtn" id="btn-dash"><span class="btn-icon">💨</span><span class="btn-label">DASH</span></div>
     <div class="tbtn" id="btn-jump"><span class="btn-icon">⬆</span></div>
   </div>
   <div id="damage-flash"></div>
   <div id="death">YOU WERE DEFEATED</div>
   <div id="hint">
-    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>E</b> dash
-    &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag mouse</b> look &nbsp;·&nbsp; <b>Scroll</b> zoom
+    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>2</b> Slash &nbsp;·&nbsp; <b>E</b> dash
+    &nbsp;·&nbsp; <b>B</b> bag &nbsp;·&nbsp; <b>T</b> talents &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag</b> look
   </div>
   <script type="module" src="./src/main.js"></script>
   <script>

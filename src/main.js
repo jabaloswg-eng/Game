@@ -11,6 +11,8 @@ import { createProgression } from './progression.js';
 import { createSkills } from './skills.js';
 import { initTouch } from './touch.js';
 import { createTalentsUI } from './talents.js';
+import { createLoot } from './loot.js';
+import { createBag } from './bag.js';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
@@ -65,6 +67,7 @@ const enemies = createEnemies(scene);
 const fx = createFX(scene);
 const particles = createParticles(scene);
 const progression = createProgression();
+const loot = createLoot(scene);
 
 // --- player health and combat ------------------------------------------------
 
@@ -120,10 +123,40 @@ function hurtPlayer(amount, fromPos) {
 
 const talentsUI = createTalentsUI(progression, () => refreshHpBar());
 
+const bag = createBag(progression, {
+  onUsePotion() {
+    if (dead || hp >= progression.maxHp() || !progression.usePotion()) return false;
+    hp = Math.min(progression.maxHp(), hp + 50);
+    refreshHpBar();
+    particles.spawn(hero.group.position.clone().setY(hero.group.position.y + 1), {
+      count: 16, color: 0x6ee06a, speed: 3, life: 0.7, spread: 0, gravity: -3,
+    });
+    return true;
+  },
+});
+
+function onPickup(type, amount) {
+  const pos = hero.group.position.clone().setY(hero.group.position.y + 2.0);
+  if (type === 'gold') {
+    progression.addGold(amount);
+    fx.spawnNumber(pos, `+${amount}`, '#ffd24a');
+  } else {
+    progression.addPotion(amount);
+    fx.spawnNumber(pos, '+🧪', '#ff8a8a');
+  }
+  bag.refreshHud();
+}
+
+const GOLD_BY_TYPE = { goblin: [2, 4], wolf: [3, 5], boar: [4, 7] };
+const POTION_DROP_CHANCE = 0.18;
+
 function onKill(type, atPos) {
   particles.spawn(atPos.clone().setY(atPos.y + 0.8), {
     count: 10, color: 0x9fe07a, speed: 3.5, life: 0.6, spread: 0,
   });
+  const [lo, hi] = GOLD_BY_TYPE[type] ?? [2, 4];
+  loot.spawnDrop(atPos, 'gold', lo + Math.floor(Math.random() * (hi - lo + 1)));
+  if (Math.random() < POTION_DROP_CHANCE) loot.spawnDrop(atPos, 'potion', 1);
   if (progression.gainXP(XP_REWARD[type] ?? 10)) {
     // level up: full heal + golden fountain
     hp = progression.maxHp();
@@ -142,6 +175,8 @@ const CHARGE_BONUS = 1.6;
 
 let charging = null;       // { target } while dashing
 let chargeStrike = false;  // the next sword strike is the empowered one
+let slashStrike = false;   // the next sword strike is a heavy Slash
+let chargeEchoUntil = -1;  // Echo Charge talent: free recast window
 
 function tryCharge() {
   if (dead || charging) return false;
@@ -150,12 +185,30 @@ function tryCharge() {
   charging = { target, timeLeft: 1.1 };
   hero.setArmed(true);
   sheatheTimer = SHEATHE_AFTER;
+  // Echo Charge: the first cast opens a 15s window for one free recast
+  if (progression.has('w5')) {
+    chargeEchoUntil = elapsed < chargeEchoUntil ? -1 : elapsed + 15;
+  }
+  return true;
+}
+
+// Slash: a heavy blow that hits twice as hard as a basic attack
+function trySlash() {
+  if (dead || charging || !hero.startAttack()) return false;
+  hero.setArmed(true);
+  sheatheTimer = SHEATHE_AFTER;
+  slashStrike = true;
+  if (Math.hypot(velocity.x, velocity.z) < 1) {
+    hero.group.rotation.y = controls.state.yaw + Math.PI;
+  }
   return true;
 }
 
 const skills = createSkills([
   { id: 'charge', name: 'Charge', key: '1', icon: '⚡', unlockLevel: 1, use: tryCharge,
-    cooldown: () => (progression.has('w2') ? 6 : 8) },
+    cooldown: () => (progression.has('w2') ? 6 : 8),
+    bypass: () => progression.has('w5') && elapsed < chargeEchoUntil },
+  { id: 'slash', name: 'Slash', key: '2', icon: '🗡️', unlockLevel: 2, cooldown: 5, use: trySlash },
 ]);
 
 // --- Dash (E key / touch button): a quick burst in the movement direction ---
@@ -185,7 +238,9 @@ const touchUI = initTouch({
   controls,
   onDash: tryDash,
   onCharge: () => skills.trigger('charge'),
+  onSlash: () => skills.trigger('slash'),
   chargeCooldownFrac: () => skills.remainingFrac('charge'),
+  slashCooldownFrac: () => skills.remainingFrac('slash'),
 });
 
 function updateCharge(dt) {
@@ -233,14 +288,17 @@ function updateCombat(dt) {
 
   if (hero.consumeStrike()) {
     const wasCharge = chargeStrike;
+    const wasSlash = slashStrike;
     chargeStrike = false;
+    slashStrike = false;
     const chargeBonus = progression.has('w4') ? 2.2 : CHARGE_BONUS; // Devastating Charge
-    const damage = Math.round(progression.swordDamage() * (wasCharge ? chargeBonus : 1));
+    const mult = wasCharge ? chargeBonus : wasSlash ? 2 : 1;
+    const damage = Math.round(progression.swordDamage() * mult);
     // the charge slash reaches a bit farther, so a last-instant knockback
     // can't push the target out of reach
     const hits = enemies.damageCone(
       hero.group.position, hero.group.rotation.y, damage, fx, onKill,
-      wasCharge ? 3.8 : 2.8
+      wasCharge ? 3.8 : wasSlash ? 3.2 : 2.8
     );
     if (hits > 0) {
       sheatheTimer = SHEATHE_AFTER;
@@ -421,6 +479,7 @@ function loop() {
   updatePlayer(dt);
   updateCombat(dt);
   enemies.update(dt, hero.group.position, hurtPlayer);
+  loot.update(dt, hero.group.position, onPickup);
   fx.update(dt);
   particles.update(dt);
   updateFov(dt);
@@ -456,6 +515,9 @@ window.__game = {
   get dashing() { return dashT > 0; },
   get talents() { return progression.talents; },
   get talentPoints() { return progression.availablePoints(); },
+  get gold() { return progression.gold; },
+  get potions() { return progression.potions; },
+  get lootCount() { return loot.count(); },
   learn(id) { return progression.learn(id); },
   openTalents() { talentsUI.toggle(true); },
   boxOf(i) { return enemies.boxOf(i); },

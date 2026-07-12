@@ -12,7 +12,9 @@ that live there.
 | **W A S D** (or arrow keys) | Move |
 | **Click** (or **J**) | Attack with your sword |
 | **1** | Charge — rush to a distant enemy and land an empowered slash |
+| **2** | Slash — a heavy blow dealing double damage (unlocks at level 2) |
 | **E** | Dash — a quick burst of speed in your movement direction |
+| **B** (or the 🎒 button) | Open your bag |
 | **T** (or click your level badge) | Open the talent tree |
 | **Shift** | Sprint |
 | **Space** | Jump |
@@ -51,8 +53,14 @@ future versions.
 
 Each level up also grants a **skill point** for the talent tree (press
 T or tap your level badge): three branches — Warrior (damage and Charge
-upgrades), Agility (speed, Dash, a double jump) and Vitality (health,
-regeneration, damage reduction). Talents are saved with your progress.
+upgrades, including Echo Charge for a free second Charge within 15s),
+Agility (speed, Dash, a double jump) and Vitality (health, regeneration,
+damage reduction). Talents are saved with your progress.
+
+Defeated monsters drop **gold** and sometimes **health potions** — walk
+near a drop and it flies into your bag. Open the bag (B / 🎒) to see
+your riches and drink potions (50 HP each). Gold and potions are saved
+with your progress; spending gold (shops!) is coming in a future update.
 
 ## Running the game
 

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { groundTexture, barkTexture, waterNormalTexture } from './textures.js';
 
 export const WATER_LEVEL = -1.4;
-export const WORLD_SIZE = 440;
+export const WORLD_SIZE = 640;
 
 // ---------------------------------------------------------------------------
 // Deterministic noise — the same coordinates always give the same height, so
@@ -52,17 +52,20 @@ function smoothstep(a, b, t) {
 // ---------------------------------------------------------------------------
 
 const LAKE = { x: -45, z: 35, radius: 26 };
+const LAKE2 = { x: 125, z: -100, radius: 30 };
 
 export function terrainHeight(x, z) {
   const r = Math.hypot(x, z);
   let h = 2.5 + fbm(x * 0.018, z * 0.018) * 5.5;
   h += fbm(x * 0.06 + 40, z * 0.06 - 17) * 1.1;
 
-  const ring = smoothstep(150, 200, r);
-  h += ring * (30 + fbm(x * 0.01 + 90, z * 0.01 + 90) * 14 + 18 * smoothstep(170, 215, r));
+  const ring = smoothstep(235, 292, r);
+  h += ring * (30 + fbm(x * 0.01 + 90, z * 0.01 + 90) * 14 + 18 * smoothstep(258, 318, r));
 
   const dLake = (x - LAKE.x) ** 2 + (z - LAKE.z) ** 2;
   h -= Math.exp(-dLake / (2 * LAKE.radius * LAKE.radius)) * 11;
+  const dLake2 = (x - LAKE2.x) ** 2 + (z - LAKE2.z) ** 2;
+  h -= Math.exp(-dLake2 / (2 * LAKE2.radius * LAKE2.radius)) * 10;
 
   return h;
 }
@@ -78,7 +81,7 @@ const ROCK = new THREE.Color(0xa3a3ae);
 const SNOW = new THREE.Color(0xf2f5f9);
 
 function buildTerrain() {
-  const segments = 300;
+  const segments = 400;
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segments, segments);
   geo.rotateX(-Math.PI / 2);
 
@@ -136,7 +139,7 @@ function buildTerrain() {
 
 // Finds spots on open grassland (not underwater, not on the mountains,
 // and never right on top of the player's spawn point).
-function grassSpots(count, seed, minH = WATER_LEVEL + 1.2, maxH = 18, maxR = 160, minR = 12) {
+function grassSpots(count, seed, minH = WATER_LEVEL + 1.2, maxH = 18, maxR = 245, minR = 12) {
   const spawn = findSpawn();
   const spots = [];
   let i = 0;
@@ -154,7 +157,7 @@ function grassSpots(count, seed, minH = WATER_LEVEL + 1.2, maxH = 18, maxR = 160
 }
 
 function buildTrees(scene) {
-  const spots = grassSpots(190, 1000);
+  const spots = grassSpots(320, 1000);
   const trunkGeo = new THREE.CylinderGeometry(0.22, 0.34, 2.2, 7);
   const trunkMat = new THREE.MeshStandardMaterial({
     color: 0x8a6240,
@@ -197,7 +200,7 @@ function buildTrees(scene) {
 
 // small grass blades scattered across the meadows for ground-level detail
 function buildGrassTufts(scene) {
-  const spots = grassSpots(750, 4000, WATER_LEVEL + 1.0, 15, 155, 4);
+  const spots = grassSpots(1150, 4000, WATER_LEVEL + 1.0, 15, 240, 4);
   const geo = new THREE.ConeGeometry(0.07, 0.4, 4);
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
   const tufts = new THREE.InstancedMesh(geo, mat, spots.length);
@@ -219,7 +222,7 @@ function buildGrassTufts(scene) {
 }
 
 function buildRocks(scene) {
-  const spots = grassSpots(90, 2000, WATER_LEVEL + 0.4, 30, 175);
+  const spots = grassSpots(150, 2000, WATER_LEVEL + 0.4, 30, 255);
   const geo = new THREE.DodecahedronGeometry(0.9, 0);
   const mat = new THREE.MeshStandardMaterial({ color: 0x9a9aa4, roughness: 0.95, flatShading: true });
   const rocks = new THREE.InstancedMesh(geo, mat, spots.length);
@@ -241,7 +244,7 @@ function buildRocks(scene) {
 }
 
 function buildFlowers(scene) {
-  const spots = grassSpots(320, 3000, WATER_LEVEL + 1.4, 14, 150);
+  const spots = grassSpots(520, 3000, WATER_LEVEL + 1.4, 14, 235);
   const geo = new THREE.SphereGeometry(0.13, 6, 5);
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
   const flowers = new THREE.InstancedMesh(geo, mat, spots.length);
@@ -305,7 +308,7 @@ function buildSkyMesh() {
 }
 
 function buildClouds(scene) {
-  const count = 14;
+  const count = 20;
   const geo = new THREE.IcosahedronGeometry(7, 1);
   // unlit material so clouds stay bright white instead of turning gray
   const mat = new THREE.MeshBasicMaterial({
@@ -317,9 +320,9 @@ function buildClouds(scene) {
   const m = new THREE.Matrix4();
   const drift = [];
   for (let i = 0; i < count; i++) {
-    const x = (hash(i, 7) - 0.5) * 600;
+    const x = (hash(i, 7) - 0.5) * 850;
     const y = 95 + hash(i, 13) * 45;
-    const z = (hash(i, 29) - 0.5) * 600;
+    const z = (hash(i, 29) - 0.5) * 850;
     const s = 0.8 + hash(i, 41) * 1.6;
     drift.push({ x, y, z, s, speed: 1.2 + hash(i, 59) * 1.8 });
     m.makeScale(s * 1.7, s * 0.5, s);
@@ -332,7 +335,7 @@ function buildClouds(scene) {
     for (let i = 0; i < count; i++) {
       const d = drift[i];
       d.x += d.speed * dt;
-      if (d.x > 350) d.x = -350;
+      if (d.x > 480) d.x = -480;
       m.makeScale(d.s * 1.7, d.s * 0.5, d.s);
       m.setPosition(d.x, d.y, d.z);
       clouds.setMatrixAt(i, m);
@@ -395,7 +398,7 @@ function buildLights(scene) {
 // ---------------------------------------------------------------------------
 
 export function buildWorld(scene, renderer) {
-  scene.fog = new THREE.Fog(0xcfe8f7, 110, 440);
+  scene.fog = new THREE.Fog(0xcfe8f7, 120, 580);
 
   const sky = buildSkyMesh();
   scene.add(sky);

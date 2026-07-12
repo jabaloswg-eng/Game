@@ -12,6 +12,7 @@ export const TALENT_TREE = [
     { id: 'w2', name: 'Relentless', desc: 'Charge cooldown −2s' },
     { id: 'w3', name: 'Brutal Strikes', desc: '+10 sword damage' },
     { id: 'w4', name: 'Devastating Charge', desc: 'Charge slash deals ×2.2 damage' },
+    { id: 'w5', name: 'Echo Charge', desc: 'For 15s after a Charge, you may Charge once more, ignoring its cooldown' },
   ]},
   { branch: 'Agility', icon: '💨', color: '#7ec8e3', nodes: [
     { id: 'a1', name: 'Fleet Foot', desc: '+10% movement speed' },
@@ -39,6 +40,8 @@ export function createProgression() {
   let level = 1;
   let xp = 0;
   let talents = new Set();
+  let gold = 0;
+  let potions = 0;
 
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
@@ -48,6 +51,8 @@ export function createProgression() {
       if (Array.isArray(saved.talents)) {
         talents = new Set(saved.talents.filter((t) => ALL_NODE_IDS.has(t)));
       }
+      gold = Math.max(0, Math.floor(saved.gold || 0));
+      potions = Math.max(0, Math.floor(saved.potions || 0));
     }
   } catch { /* no save or corrupted save — start fresh */ }
 
@@ -68,7 +73,9 @@ export function createProgression() {
 
   function save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ level, xp, talents: [...talents] }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        level, xp, talents: [...talents], gold, potions,
+      }));
     } catch { /* storage may be unavailable (private mode) — play on */ }
   }
 
@@ -118,6 +125,16 @@ export function createProgression() {
     gainXP,
     get level() { return level; },
     get xp() { return xp; },
+    get gold() { return gold; },
+    get potions() { return potions; },
+    addGold(n) { gold += n; save(); },
+    addPotion(n = 1) { potions += n; save(); },
+    usePotion() {
+      if (potions <= 0) return false;
+      potions--;
+      save();
+      return true;
+    },
     has, canLearn, learn, availablePoints,
     get talents() { return [...talents]; },
     maxHp: () => 100 + (level - 1) * 6 + (has('v1') ? 30 : 0) + (has('v4') ? 50 : 0),

@@ -168,13 +168,14 @@ const TYPES = {
   boar:   { build: buildBoar,   hp: 70, damage: 14, chaseSpeed: 5.6, walkSpeed: 1.4, aggro: 12, range: 1.9, cooldown: 1.9 },
 };
 
-const RESPAWN_SECONDS = 14;
+const RESPAWN_SECONDS = 10;
 
 // hand-placed dens around the valley; the first goblin is close to the
 // player's spawn so there's something to fight right away. A fourth entry
 // names a GLB model variant from the assets/ folder (e.g. 'blender' loads
 // assets/goblin-blender.glb in place of the built-in primitive model).
 const DENS = [
+  // inner valley
   ['goblin', 16, 8, 'ai'], ['goblin', 20, 12, 'ai'], ['goblin', -60, -40, 'ai'], ['goblin', -64, -34, 'ai'],
   ['goblin', -55, -44, 'ai'], ['goblin', 85, 30, 'ai'], ['goblin', 90, 36, 'ai'], ['goblin', 82, 40, 'ai'],
   ['goblin', -20, 60, 'ai'], ['goblin', -25, 55, 'ai'], ['goblin', 55, -30, 'ai'], ['goblin', 50, -25, 'ai'],
@@ -182,6 +183,14 @@ const DENS = [
   ['wolf', 100, 60], ['wolf', 105, 65], ['wolf', -40, -80], ['wolf', -35, -85],
   ['boar', -30, -15], ['boar', 60, 75], ['boar', -95, 10], ['boar', 25, 95], ['boar', 110, -30],
   ['boar', -70, 40], ['boar', 10, -60], ['boar', 130, 20],
+  // the newly opened outer valley
+  ['goblin', 170, 90, 'ai'], ['goblin', 176, 86, 'ai'], ['goblin', 165, 95, 'ai'],
+  ['goblin', -150, -110, 'ai'], ['goblin', -156, -104, 'ai'],
+  ['goblin', -170, 60, 'ai'], ['goblin', -164, 66, 'ai'],
+  ['wolf', 150, -150], ['wolf', 156, -144], ['wolf', 145, -156],
+  ['wolf', -120, 160], ['wolf', -126, 154], ['wolf', 60, 180], ['wolf', 66, 174],
+  ['boar', 200, -40], ['boar', -200, -20], ['boar', -60, -170], ['boar', 90, 150],
+  ['boar', -180, 120], ['boar', 30, -190],
 ];
 
 // nudge a den position off water / cliffs

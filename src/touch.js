@@ -2,7 +2,7 @@
 // joystick on the left, and attack / charge / dash / jump buttons on the
 // right. Only activates on touch devices (or with ?touch=1 for testing).
 
-export function initTouch({ controls, onDash, onCharge, chargeCooldownFrac }) {
+export function initTouch({ controls, onDash, onCharge, onSlash, chargeCooldownFrac, slashCooldownFrac }) {
   const isTouchDevice =
     window.matchMedia('(pointer: coarse)').matches ||
     'ontouchstart' in window ||
@@ -73,12 +73,13 @@ export function initTouch({ controls, onDash, onCharge, chargeCooldownFrac }) {
   bind('btn-attack', () => controls.queueAttack());
   bind('btn-jump', () => (controls.touch.jumpHeld = true), () => (controls.touch.jumpHeld = false));
   bind('btn-dash', onDash);
-  const chargeBtn = bind('btn-charge', onCharge);
-  const chargeCd = chargeBtn.querySelector('.btn-cd');
+  const chargeCd = bind('btn-charge', onCharge).querySelector('.btn-cd');
+  const slashCd = bind('btn-slash', onSlash).querySelector('.btn-cd');
 
-  // called from the game loop: keeps the charge button's cooldown shade in sync
+  // called from the game loop: keeps the buttons' cooldown shades in sync
   function update() {
     chargeCd.style.height = `${chargeCooldownFrac() * 100}%`;
+    slashCd.style.height = `${slashCooldownFrac() * 100}%`;
   }
 
   return { update };

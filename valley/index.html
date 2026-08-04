@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>The Valley — an open world adventure</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#16324f" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background: #0b1a2a;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    #game {
+      position: fixed;
+      inset: 0;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: linear-gradient(180deg, #16324f 0%, #0b1a2a 100%);
+      color: #dcecf7;
+      z-index: 10;
+      transition: opacity 0.6s ease;
+    }
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loading .title {
+      font-size: 34px;
+      letter-spacing: 3px;
+      font-weight: 600;
+    }
+    #loading .spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid rgba(220, 236, 247, 0.25);
+      border-top-color: #dcecf7;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      padding: 8px 18px;
+      border-radius: 20px;
+      background: rgba(10, 25, 40, 0.55);
+      color: #e8f2fa;
+      font-size: 14px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+    }
+    #hint b { color: #ffd97a; font-weight: 600; }
+    #hud {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 5;
+      color: #e8f2fa;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+    #hpbar {
+      width: 220px;
+      height: 16px;
+      border-radius: 9px;
+      background: rgba(10, 25, 40, 0.6);
+      border: 1px solid rgba(232, 242, 250, 0.35);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    #hpfill {
+      height: 100%;
+      width: 100%;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #3fbf5a, #6ee06a);
+      transition: width 0.15s ease;
+    }
+    #hpfill.low { background: linear-gradient(90deg, #c2372b, #e05a3f); }
+    #toprow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #levelbadge {
+      background: linear-gradient(180deg, #f2c94c, #c9992e);
+      color: #2c2008;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 2px 9px;
+      border-radius: 10px;
+    }
+    #xpbar {
+      width: 220px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(10, 25, 40, 0.6);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    #xpfill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #b98ef2, #7c5bd6);
+      transition: width 0.2s ease;
+    }
+    #levelup {
+      position: fixed;
+      top: 22%;
+      left: 50%;
+      transform: translateX(-50%) scale(0.8);
+      color: #ffe27a;
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      text-shadow: 0 0 24px rgba(255, 190, 60, 0.9), 0 2px 6px rgba(0,0,0,0.6);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 7;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #levelup.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+    #skillbar {
+      position: fixed;
+      left: 50%;
+      bottom: 56px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 5;
+    }
+    .skill {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 10px;
+      background: rgba(10, 25, 40, 0.65);
+      border: 1px solid rgba(232, 242, 250, 0.4);
+      cursor: pointer;
+      overflow: hidden;
+      user-select: none;
+    }
+    .skill-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+    }
+    .skill-key {
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      font-size: 11px;
+      color: #ffd97a;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .skill-name {
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #cfe3f2;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .skill-cd {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0%;
+      background: rgba(20, 40, 60, 0.8);
+      z-index: 1;
+    }
+    .skill.locked { filter: grayscale(1) brightness(0.5); cursor: default; }
+    .skill.shake { animation: shake 0.3s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    /* ---- gold + bag ---- */
+    #goldrow { margin-top: 5px; font-size: 14px; color: #ffd97a; font-weight: 600; }
+    #bagbtn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: rgba(10, 25, 40, 0.55);
+      border: 1px solid rgba(232, 242, 250, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 6;
+      user-select: none;
+      touch-action: none;
+    }
+    #bag {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 14, 24, 0.75);
+      z-index: 19;
+      backdrop-filter: blur(3px);
+    }
+    #bag.hidden { display: none; }
+    #bag-inner {
+      background: rgba(14, 30, 48, 0.97);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      border-radius: 14px;
+      padding: 18px 22px;
+      color: #e8f2fa;
+      width: min(92vw, 420px);
+    }
+    #bag-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    #bag-head h2 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+    #bag-close { cursor: pointer; font-size: 22px; padding: 2px 10px; border-radius: 8px; background: rgba(232, 242, 250, 0.12); }
+    .bag-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(232, 242, 250, 0.06);
+      margin-bottom: 8px;
+    }
+    .bag-icon { font-size: 28px; }
+    .bag-label { flex: 1; }
+    .bag-label .sub { font-size: 12px; opacity: 0.7; }
+    #bag-use-potion {
+      padding: 8px 16px;
+      border-radius: 9px;
+      background: linear-gradient(180deg, #3fbf5a, #2e9245);
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    #bag-use-potion.disabled { filter: grayscale(1) brightness(0.6); cursor: default; }
+    /* ---- talent tree ---- */
+    #levelbadge { cursor: pointer; position: relative; }
+    #levelbadge.points::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #b388ff;
+      box-shadow: 0 0 8px #b388ff;
+    }
+    #talents {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 14, 24, 0.8);
+      z-index: 20;
+      backdrop-filter: blur(3px);
+    }
+    #talents.hidden { display: none; }
+    #talents-inner {
+      background: rgba(14, 30, 48, 0.97);
+      border: 1px solid rgba(232, 242, 250, 0.25);
+      border-radius: 14px;
+      padding: 18px 22px;
+      color: #e8f2fa;
+      max-width: 860px;
+      width: 92vw;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    #talents-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    #talents-head h2 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+    #talent-points { color: #b388ff; font-weight: 600; }
+    #talents-close {
+      cursor: pointer;
+      font-size: 22px;
+      padding: 2px 10px;
+      border-radius: 8px;
+      background: rgba(232, 242, 250, 0.12);
+    }
+    #talent-columns { display: flex; gap: 14px; flex-wrap: wrap; }
+    .talent-branch { flex: 1; min-width: 180px; }
+    .branch-title { font-weight: 700; letter-spacing: 1px; margin-bottom: 8px; }
+    .talent-node {
+      border: 2px solid rgba(232, 242, 250, 0.2);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .talent-node.can {
+      border-color: #b388ff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(179, 136, 255, 0.35);
+    }
+    .talent-node.can:hover { background: rgba(179, 136, 255, 0.15); }
+    .talent-node.locked { opacity: 0.45; }
+    .talent-node.owned { background: rgba(232, 242, 250, 0.08); }
+    .node-name { font-weight: 600; font-size: 14px; }
+    .node-desc { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    /* ---- touch controls (phones/tablets only) ---- */
+    #game, #joystick, .tbtn { touch-action: none; -webkit-user-select: none; user-select: none; }
+    #touch-ui { display: none; }
+    body.touch #touch-ui { display: block; }
+    body.touch #hint { display: none; }
+    body.touch #skillbar { display: none; }
+    #joystick {
+      position: fixed;
+      left: max(22px, env(safe-area-inset-left));
+      bottom: max(26px, env(safe-area-inset-bottom));
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      background: rgba(10, 25, 40, 0.35);
+      border: 2px solid rgba(232, 242, 250, 0.35);
+      z-index: 6;
+    }
+    #joy-stick {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 56px;
+      height: 56px;
+      margin: -28px 0 0 -28px;
+      border-radius: 50%;
+      background: rgba(232, 242, 250, 0.55);
+      pointer-events: none;
+    }
+    .tbtn {
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(10, 25, 40, 0.5);
+      border: 2px solid rgba(232, 242, 250, 0.45);
+      color: #e8f2fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 6;
+      overflow: hidden;
+    }
+    .tbtn.pressed { background: rgba(90, 140, 190, 0.6); }
+    .tbtn .btn-icon { font-size: 26px; line-height: 1; }
+    .tbtn .btn-label { font-size: 9px; letter-spacing: 1px; margin-top: 2px; opacity: 0.85; }
+    .btn-cd {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 0%;
+      background: rgba(15, 30, 45, 0.75);
+      pointer-events: none;
+    }
+    /* layout: big attack in the corner, charge left of it, dash above, small jump tucked between */
+    #btn-attack { right: max(24px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); width: 86px; height: 86px; }
+    #btn-attack .btn-icon { font-size: 36px; }
+    #btn-charge { right: 128px; bottom: 26px; width: 62px; height: 62px; }
+    #btn-slash  { right: 208px; bottom: 30px; width: 58px; height: 58px; }
+    #btn-dash   { right: 22px;  bottom: 148px; width: 56px; height: 56px; }
+    #btn-jump   { right: 150px; bottom: 110px; width: 46px; height: 46px; }
+    #btn-jump .btn-icon { font-size: 20px; }
+    #damage-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 8;
+      box-shadow: inset 0 0 120px 40px rgba(200, 30, 20, 0.55);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #death {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 5, 8, 0.75);
+      color: #f2d9d0;
+      font-size: 38px;
+      letter-spacing: 4px;
+      z-index: 9;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="loading">
+    <div class="title">THE VALLEY</div>
+    <div class="spinner"></div>
+    <div>Preparing your adventure…</div>
+  </div>
+  <div id="hud">
+    <div id="toprow"><span id="levelbadge">Lv 1</span> HP</div>
+    <div id="hpbar"><div id="hpfill"></div></div>
+    <div id="xpbar"><div id="xpfill"></div></div>
+    <div id="goldrow">🪙 <span id="goldcount">0</span></div>
+  </div>
+  <div id="bagbtn">🎒</div>
+  <div id="bag" class="hidden">
+    <div id="bag-inner">
+      <div id="bag-head">
+        <h2>BAG</h2>
+        <span id="bag-close">✕</span>
+      </div>
+      <div class="bag-row">
+        <span class="bag-icon">🪙</span>
+        <span class="bag-label">Gold<div class="sub">The valley's currency</div></span>
+        <b id="bag-gold">0</b>
+      </div>
+      <div class="bag-row">
+        <span class="bag-icon">🧪</span>
+        <span class="bag-label">Health Potion<div class="sub">Restores 50 HP</div></span>
+        <span id="bag-potion-count">× 0</span>
+        <span id="bag-use-potion">Use</span>
+      </div>
+    </div>
+  </div>
+  <div id="levelup">LEVEL UP!</div>
+  <div id="talents" class="hidden">
+    <div id="talents-inner">
+      <div id="talents-head">
+        <h2>TALENTS</h2>
+        <span id="talent-points">Skill points: 0</span>
+        <span id="talents-close">✕</span>
+      </div>
+      <div id="talent-columns"></div>
+    </div>
+  </div>
+  <div id="skillbar"></div>
+  <div id="touch-ui">
+    <div id="joystick"><div id="joy-stick"></div></div>
+    <div class="tbtn" id="btn-attack"><span class="btn-icon">⚔️</span><span class="btn-label">ATTACK</span></div>
+    <div class="tbtn" id="btn-charge"><span class="btn-icon">⚡</span><span class="btn-label">CHARGE</span><div class="btn-cd"></div></div>
+    <div class="tbtn" id="btn-slash"><span class="btn-icon">🗡️</span><span class="btn-label">SLASH</span><div class="btn-cd"></div></div>
+    <div class="tbtn" id="btn-dash"><span class="btn-icon">💨</span><span class="btn-label">DASH</span></div>
+    <div class="tbtn" id="btn-jump"><span class="btn-icon">⬆</span></div>
+  </div>
+  <div id="damage-flash"></div>
+  <div id="death">YOU WERE DEFEATED</div>
+  <div id="hint">
+    <b>WASD</b> move &nbsp;·&nbsp; <b>Click</b> attack &nbsp;·&nbsp; <b>1</b> Charge &nbsp;·&nbsp; <b>2</b> Slash &nbsp;·&nbsp; <b>E</b> dash
+    &nbsp;·&nbsp; <b>B</b> bag &nbsp;·&nbsp; <b>T</b> talents &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Drag</b> look
+  </div>
+  <script type="module" src="./src/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

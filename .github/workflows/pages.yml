@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/chat-session-foy0si]
+    branches: [main, claude/chat-session-foy0si, claude/world-magic-game-clone-8dpigi]
   workflow_dispatch:
 
 permissions:

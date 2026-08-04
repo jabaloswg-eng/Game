@@ -41,7 +41,17 @@ function resize() {
   G.canvas.height = Math.round(cssH * dpr);
   G.viewW = cssW; G.viewH = cssH;
   G.zoom = clamp(Math.min(cssW, cssH * 1.2) / 560, 0.68, 1.5);
+  checkOrientation();
 }
+
+// Landscape-only: gate the whole game behind a rotate prompt while portrait.
+function checkOrientation() {
+  const portrait = window.innerHeight > window.innerWidth;
+  $('#rotate-overlay').classList.toggle('hidden', !portrait);
+  G.paused = portrait;
+  if (portrait && G.running) emit('requestSave'); // don't lose progress mid-rotate
+}
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 
 /* ================== title & creation screens ================== */
 let titleAnim = null;
@@ -347,7 +357,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (ts - last) / 1000 || 0.016);
   last = ts;
-  if (!G.running || !G.player || !G.zone) return;
+  if (!G.running || !G.player || !G.zone || G.paused) return;
   G.time += dt;
   update(dt);
   draw();

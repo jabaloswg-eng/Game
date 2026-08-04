@@ -342,7 +342,66 @@ button.ghost { pointer-events: auto; background: transparent; border: 1px solid 
 .tgl.on { background: linear-gradient(180deg, #f3d789, #c79b47); }
 .tgl.on::after { left: 26px; background: #fff; }
 
-@media (min-width: 700px) { /* tablets / desktop preview */
+/* ---------- rotate gate (portrait) ---------- */
+#rotate-overlay { position: fixed; inset: 0; z-index: 100; pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: radial-gradient(circle at 50% 35%, #1a1430, #0b0e1a 75%); text-align: center; }
+#rotate-overlay .rot-icon { font-size: 64px; animation: rotphone 2s ease-in-out infinite; }
+@keyframes rotphone { 0%, 20% { transform: rotate(0); } 55%, 80% { transform: rotate(90deg); } 100% { transform: rotate(90deg); } }
+#rotate-overlay .rot-text { font-family: Georgia, serif; font-size: 22px; letter-spacing: 2px; color: var(--gold);
+  text-shadow: 0 0 18px rgba(232,194,104,.4); }
+#rotate-overlay .rot-sub { font-size: 12px; color: var(--ink-dim); letter-spacing: 1px; }
+
+/* ---------- landscape phone HUD ---------- */
+@media (orientation: landscape) and (max-height: 560px) {
+  #hud-tl { top: calc(6px + var(--sat)); }
+  #portrait { width: 48px; height: 48px; }
+  .bar { width: 132px; height: 11px; } .bar span { font-size: 8.5px; line-height: 11px; }
+  .bar.xp { height: 5px; }
+  #hud-name { font-size: 11px; margin-bottom: 2px; }
+  #target-frame { top: calc(6px + var(--sat)); width: 184px; padding: 4px 9px 6px; }
+  #hud-tr { top: calc(6px + var(--sat)); }
+  #zone-name { font-size: 10.5px; margin-bottom: 3px; }
+  #minimap { width: 78px; height: 78px; }
+  #currency span { font-size: 10.5px; padding: 1px 7px; }
+  /* menu becomes a bottom-center row, above the joystick layer */
+  #menu-row { top: auto; bottom: calc(6px + var(--sab)); right: auto; left: 50%;
+    transform: translateX(-50%); flex-direction: row; gap: 5px; z-index: 5; }
+  .mbtn { width: 38px; height: 38px; font-size: 16px; border-radius: 10px; }
+  /* action cluster: 4-across skill row */
+  #actions { right: calc(10px + var(--sar)); bottom: calc(10px + var(--sab)); gap: 6px; }
+  #skill-slots { grid-template-columns: repeat(4, 50px); gap: 6px; }
+  .skill-btn { width: 50px; height: 50px; border-radius: 14px; }
+  #btn-attack { width: 64px; height: 64px; font-size: 26px; }
+  .pot-btn { width: 42px; height: 42px; font-size: 17px; }
+  #btn-auto { padding: 4px 12px; font-size: 10px; }
+  #atk-row { gap: 7px; }
+  #log { bottom: calc(54px + var(--sab)); left: calc(10px + var(--sal)); width: 28vw; max-height: 84px; }
+  #log div { font-size: 10px; }
+  #btn-interact, #btn-pickup { right: calc(240px + var(--sar)); bottom: calc(24px + var(--sab));
+    padding: 10px 15px; font-size: 13.5px; }
+  #buffs { max-width: 140px; }
+  /* windows: use the width, not the height */
+  .win { width: min(78vw, 600px); max-height: 94vh; border-radius: 13px; }
+  .win-head { padding: 6px 12px; } .win-head h4 { font-size: 13px; }
+  .win-body { padding: 9px; }
+  .grid { grid-template-columns: repeat(8, 1fr); }
+  #screen-create { justify-content: flex-start; overflow-y: auto; padding: 10px 16px; }
+  #screen-create h3 { font-size: 14px; margin-bottom: 8px; }
+  .class-card canvas { width: 56px; height: 70px; }
+  .class-card { padding: 6px 4px 5px; }
+  .class-card .cn { font-size: 12px; }
+  #create-detail { min-height: 34px; font-size: 11px; margin-bottom: 8px; }
+  #create-form { gap: 7px; }
+  #create-name { padding: 8px 14px; font-size: 13.5px; }
+  #btn-create { padding: 9px 34px; font-size: 14px; }
+  #screen-title h1 { font-size: clamp(38px, 9vh, 64px); }
+  #slots { width: min(60vw, 420px); gap: 7px; }
+  .slot-btn { padding: 9px 15px; font-size: 13px; }
+  .title-foot { margin-top: 10px; }
+}
+
+@media (min-width: 700px) and (min-height: 561px) { /* tablets / desktop preview */
   .bar { width: 200px; }
   #minimap { width: 120px; height: 120px; }
   #log { width: 300px; }

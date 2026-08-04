@@ -1,5 +1,5 @@
 // Emberveil service worker — replaces any older SW at this scope immediately.
-const CACHE = 'emberveil-v1';
+const CACHE = 'emberveil-v2';
 const CORE = ['./', './index.html', './css/style.css', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {

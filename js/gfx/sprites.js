@@ -185,13 +185,23 @@ export function drawHumanoid(ctx, x, y, o) {
     const hgg = ctx.createLinearGradient(0, hy - 15, 0, hy + 8);
     hgg.addColorStop(0, shade(o.hood, 0.15)); hgg.addColorStop(1, shade(o.hood, -0.4));
     ctx.fillStyle = hgg;
-    ctx.beginPath();
-    ctx.arc(0, hy - 0.5, 15, Math.PI * 0.92, Math.PI * 0.08);
-    ctx.quadraticCurveTo(12, hy + 9, 0, hy + 10);
-    ctx.quadraticCurveTo(-12, hy + 9, -14.7, hy + 2);
-    ctx.closePath(); ctx.fill();
-    if (!back) { ctx.fillStyle = 'rgba(10,8,18,0.5)';
-      ctx.beginPath(); ctx.ellipse(S ? 3 : 0, hy + 1, 9, 8, 0, 0, Math.PI, true); ctx.fill(); }
+    if (back) { // full hood from behind
+      ctx.beginPath(); ctx.arc(0, hy - 0.5, 15, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-7, hy + 12); ctx.quadraticCurveTo(0, hy + 18, 7, hy + 12);
+      ctx.lineTo(6, hy + 8); ctx.lineTo(-6, hy + 8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,250,230,0.3)'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, hy - 2, 11, Math.PI * 1.15, Math.PI * 1.55); ctx.stroke();
+    } else { // rim framing the face — face stays visible
+      ctx.beginPath();
+      ctx.arc(0, hy - 0.5, 15, Math.PI, 0);                          // outer dome
+      ctx.lineTo(15.5, hy + 6);
+      ctx.quadraticCurveTo(12, hy + 9.5, 9.5, hy + 7);               // right flap
+      ctx.arc(0, hy + 0.5, 10.5, 0.06 * Math.PI, 0.94 * Math.PI, true); // inner edge over the top
+      ctx.quadraticCurveTo(-12, hy + 9.5, -15.5, hy + 6);            // left flap
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(10,8,18,0.3)';                           // soft brim shadow above the eyes
+      ctx.beginPath(); ctx.ellipse(S ? 3 : 0, hy - 4.5, 9, 3.4, 0, 0, Math.PI, true); ctx.fill();
+    }
   } else {
     drawHair(ctx, hy, hair, o.dir, S, back);
     if (o.hat === 'wizard') {
